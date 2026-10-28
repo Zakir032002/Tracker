@@ -128,6 +128,12 @@
     trophy: '<path d="M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4.5a1.5 1.5 0 0 0 0 3H7M17 6h2.5a1.5 1.5 0 0 1 0 3H17M12 14v4M8 21h8M10 18h4"/>',
     undo: '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>',
     zap: '<path d="m13 2-9 12h7l-1 8 9-12h-7Z"/>',
+    waves: '<path d="M2 7c2.2-2.4 4.3-2.4 6.5 0s4.3 2.4 6.5 0 4.3-2.4 7 0M2 13c2.2-2.4 4.3-2.4 6.5 0s4.3 2.4 6.5 0 4.3-2.4 7 0M2 19c2.2-2.4 4.3-2.4 6.5 0s4.3 2.4 6.5 0 4.3-2.4 7 0"/>',
+    menu: '<path d="M4 8h16M4 16h16"/>',
+    headphones: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><path d="M4 15h3v5H5.5A1.5 1.5 0 0 1 4 18.5ZM20 15h-3v5h1.5a1.5 1.5 0 0 0 1.5-1.5Z"/>',
+    rain: '<path d="M7 15a4 4 0 0 1-.4-7.98A5.5 5.5 0 0 1 17 6.5 4.5 4.5 0 0 1 17.5 15M9 18v3M13 18v3M17 18v3"/>',
+    bolt2: '<path d="m13 3-7 10h5l-1 8 7-10h-5Z"/>',
+    stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>',
   };
   A.icon = (name, size = 20, extra = '') =>
     `<svg class="ic ${extra}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[name] || ''}</svg>`;

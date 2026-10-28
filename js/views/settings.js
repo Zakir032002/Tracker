@@ -39,8 +39,9 @@
         <section class="card glass">
           <div class="card-head"><h3>Appearance</h3></div>
           <div class="field"><span>Theme</span><div class="seg compact">${['dark', 'light', 'auto'].map((t) => `<button class="seg-btn ${s.theme === t ? 'on' : ''}" data-act="setTheme" data-v="${t}" data-quiet>${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div></div>
-          <div class="field"><span>Accent colour</span><div class="swatches">${[265, 200, 170, 140, 45, 20, 350, 320].map((h) => `<button class="sw ${s.accent === h ? 'on' : ''}" data-act="setAccent" data-h="${h}" style="--c:${h}" data-quiet aria-label="Accent ${h}"></button>`).join('')}</div></div>
-          ${toggle('refract', 'Liquid refraction', 'Bends the background through the dock and header. Chromium desktop only.')}
+          <div class="field"><span>Accent</span><div class="swatches">${A.ui.ACCENTS.map((a) => `<button class="sw ${s.accent === a.h ? 'on' : ''}" data-act="setAccent" data-h="${a.h}" style="--c:${a.h}" data-quiet aria-label="${a.name}" title="${a.name}"></button>`).join('')}</div></div>
+          <div class="field"><span>3D graphics</span><div class="seg compact">${[['high', 'High'], ['low', 'Battery saver'], ['off', 'Off']].map(([k, l]) => `<button class="seg-btn ${s.quality === k ? 'on' : ''}" data-act="setQuality" data-v="${k}" data-quiet>${l}</button>`).join('')}</div></div>
+          ${toggle('cursor', 'Custom cursor', 'A smooth follower on desktop. Reload to apply.')}
           ${toggle('confetti', 'Confetti & effects')}
         </section>
 
@@ -88,7 +89,7 @@
           A.G.rollover();
           A.ui.toast('Backup restored', { icon: '✅' });
           A.save();
-          A.navigate();
+          A.navigate(true);
         } catch (e) {
           A.sfx('error');
           A.ui.toast('That file is not a valid Ascend backup', { icon: '🚫', kind: 'warn' });
@@ -123,40 +124,46 @@
   A.actions.setToggle = (el) => {
     const k = el.dataset.k;
     A.S.settings[k] = !(A.S.settings[k] !== false && A.S.settings[k]);
-    if (k === 'refract') A.applyTheme();
     A.sfx('click');
     A.save();
-    if (A.view === 'settings') A.navigate();
+    if (A.view === 'settings') A.navigate(true);
   };
   A.actions.setAvatar = (el) => {
     A.S.profile.avatar = el.dataset.e;
     A.sfx('pop');
     A.save();
-    A.navigate();
+    A.navigate(true);
   };
   A.actions.setTheme = (el) => {
     A.S.settings.theme = el.dataset.v;
     A.applyTheme();
     A.save();
-    A.navigate();
+    A.navigate(true);
+  };
+  A.actions.setQuality = (el) => {
+    A.S.settings.quality = el.dataset.v;
+    document.documentElement.classList.toggle('no-webgl', el.dataset.v === 'off');
+    if (window.A3D && window.A3D.ready) window.A3D.quality(el.dataset.v === 'low' ? 'low' : 'high');
+    A.save();
+    A.navigate(true);
   };
   A.actions.setAccent = (el) => {
     A.S.settings.accent = +el.dataset.h;
     A.applyTheme();
     A.sfx('pop');
     A.save();
-    A.navigate();
+    A.navigate(true);
   };
   A.actions.setWeek = (el) => {
     A.S.settings.weekStart = +el.dataset.d;
     A.G.ensureBoss();
     A.save();
-    A.navigate();
+    A.navigate(true);
   };
   A.actions.setSnooze = (el) => {
     A.S.settings.snoozeMin = A.clamp(A.S.settings.snoozeMin + +el.dataset.n * (A.S.settings.snoozeMin >= 10 && +el.dataset.n > 0 ? 5 : 1), 1, 60);
     A.save();
-    A.navigate();
+    A.navigate(true);
   };
   A.actions.testLevel = () => {
     A.sfx('level');
@@ -172,7 +179,7 @@
     A.installPrompt.prompt();
     await A.installPrompt.userChoice;
     A.installPrompt = null;
-    A.navigate();
+    A.navigate(true);
   };
   A.actions.resetData = () => {
     const m = A.ui.modal({

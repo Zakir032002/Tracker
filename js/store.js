@@ -49,6 +49,7 @@
     ],
     purchases: [],
     focus: { sessions: [], running: null, lastMin: 25 },
+    sound: { master: 0.8, mix: {}, binaural: { mode: 'binaural', carrier: 220, beat: 10, vol: 0.5, noise: 0 }, presets: [], autoFocus: true },
     feed: [],
     stats: { done: 0, perfectDays: 0, focusMin: 0, focusSessions: 0, crits: 0, freezesUsed: 0, snoozes: 0 },
     settings: {
@@ -63,7 +64,8 @@
       weekStart: 1,
       snoozeMin: 10,
       confetti: true,
-      refract: true,
+      quality: 'high',
+      cursor: true,
     },
   });
 

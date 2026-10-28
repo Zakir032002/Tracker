@@ -21,7 +21,7 @@
 
   let parts = [];
   let raf = 0;
-  const PALETTE = ['#ff6b9d', '#ffd166', '#06d6a0', '#4cc9f0', '#a78bfa', '#ff9f43', '#ffffff'];
+  const PALETTE = ['#efe9df', '#d9955f', '#e6c27a', '#a9c4ae', '#9db8cc', '#c97b6b', '#f6efe4'];
 
   function tick() {
     c2.clearRect(0, 0, W, H);
@@ -71,8 +71,8 @@
         y: y * dpr,
         vx: Math.cos(a) * sp,
         vy: Math.sin(a) * sp,
-        g: 0.22 * dpr,
-        s: (6 + Math.random() * 8) * dpr,
+        g: 0.2 * dpr,
+        s: (4 + Math.random() * 7) * dpr,
         rot: Math.random() * 6.3,
         vr: (Math.random() - 0.5) * 0.35,
         life: 90 + Math.random() * 70,

@@ -1,10 +1,16 @@
-/* Ascend — Today view */
+/* Ascend: Today. Sticky hero column (the 3D core lives in its slot) + quest stream. */
 (function () {
   'use strict';
   const A = window.A;
   const { esc, icon, G } = { esc: A.esc, icon: A.icon, G: A.G };
 
-  const CIRC = 2 * Math.PI * 52;
+  const weekNo = (s) => {
+    const d = A.parse(s);
+    const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+    const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+    return Math.ceil(((t - y0) / 864e5 + 1) / 7);
+  };
 
   function riskTonight(list) {
     const S = A.S;
@@ -27,21 +33,20 @@
     for (let i = 0; i < 7; i++) {
       const d = A.addDays(start, i);
       const info = G.dayInfo(d);
-      let cls = 'future';
+      const cls = info ? info.status : 'future';
       let inner = '';
       if (info) {
-        cls = info.status;
-        if (info.status === 'kept') inner = icon('check', 14);
-        else if (info.status === 'frozen') inner = icon('snow', 13);
-        else if (info.status === 'broken') inner = icon('x', 13);
-        else if (info.status === 'open') inner = info.total ? `<small>${info.done}/${info.total}</small>` : '';
+        if (info.status === 'kept') inner = icon('check', 13);
+        else if (info.status === 'frozen') inner = icon('snow', 12);
+        else if (info.status === 'broken') inner = icon('x', 12);
+        else if (info.status === 'open' && info.total) inner = `<small>${info.done}/${info.total}</small>`;
       }
       html += `<div class="wd ${cls} ${d === today ? 'is-today' : ''}"><span>${A.DAYS[A.dow(d)].slice(0, 3)}</span><i>${inner}</i></div>`;
     }
     return `<div class="week-strip">${html}</div>`;
   }
 
-  function questRow(h) {
+  function questRow(h, idx) {
     const today = A.today();
     const e = G.entry(today, h.id) || { n: 0, done: false };
     const D = G.DIFF[h.diff] || G.DIFF.medium;
@@ -49,46 +54,42 @@
     const done = !!e.done;
     const st = G.habitStreak(h);
     const late = !done && h.reminder && A.nowMin() > A.hmToMin(h.reminder);
-    const fresh = done && e.t && Date.now() - e.t < 1200;
-    const pct = Math.round((e.n / target) * 100);
+    const fresh = done && e.t && Date.now() - e.t < 1500;
     const multi = target > 1;
-    return `<article class="quest glass ${done ? 'done' : ''} ${late ? 'late' : ''} ${fresh ? 'fresh' : ''}" data-habit="${h.id}" style="--c:${h.hue}">
-      <button class="check ${multi && !done && e.n > 0 ? 'partial' : ''}" data-act="toggle" data-id="${h.id}" data-quiet aria-pressed="${done}" aria-label="${done ? 'Undo' : 'Complete'} ${esc(h.name)}" ${multi && !done && e.n > 0 ? `style="--p:${pct}"` : ''}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
-      </button>
-      <div class="q-body">
-        <div class="q-title"><span class="q-icon">${esc(h.icon)}</span><h3>${esc(h.name)}</h3></div>
+    const pct = Math.round((e.n / target) * 100);
+    return `<article class="quest ${done ? 'done' : ''} ${late ? 'late' : ''} ${fresh ? 'fresh' : ''}" data-habit="${h.id}" style="--c:${h.hue}">
+      <span class="q-idx">${A.p2(idx + 1)}</span>
+      <div class="q-main">
+        <div class="q-title"><span class="q-icon">${esc(h.icon)}</span><h3><span class="q-name">${esc(h.name)}</span></h3></div>
         <div class="q-meta">
           <span class="chip d-${h.diff}">${D.label}</span>
           <span class="chip xp">+${D.xp} XP</span>
-          ${st ? `<span class="chip fire">${icon('flame', 12)} ${st}</span>` : ''}
-          ${h.reminder ? `<span class="chip ${late ? 'late' : 'time'}">${icon('clock', 12)} ${A.time12(h.reminder)}${late ? ' · overdue' : ''}</span>` : ''}
+          ${st ? `<span class="chip fire">${icon('flame', 11)} ${st}</span>` : ''}
+          ${h.reminder ? `<span class="chip ${late ? 'late' : 'time'}">${icon('clock', 11)} ${A.time12(h.reminder)}${late ? ' · overdue' : ''}</span>` : ''}
         </div>
+        ${multi ? `<div class="q-prog"><i style="width:${pct}%"></i></div>` : ''}
       </div>
-      ${
-        multi
-          ? `<div class="stepper" role="group" aria-label="Progress"><button class="icon-btn sm" data-act="dec" data-id="${h.id}" data-quiet aria-label="Less">${icon('minus', 16)}</button>
-             <span class="count"><b>${e.n}</b>/${target}${h.unit ? `<small>${esc(h.unit)}</small>` : ''}</span>
-             <button class="icon-btn sm" data-act="inc" data-id="${h.id}" data-quiet aria-label="More">${icon('plus', 16)}</button></div>`
-          : ''
-      }
+      ${multi ? `<div class="stepper" role="group" aria-label="Progress"><button class="icon-btn sm" data-act="dec" data-id="${h.id}" data-quiet aria-label="Less">${icon('minus', 15)}</button>
+        <span class="count"><b>${e.n}</b>/${target}${h.unit ? `<small>${esc(h.unit)}</small>` : ''}</span>
+        <button class="icon-btn sm" data-act="inc" data-id="${h.id}" data-quiet aria-label="More">${icon('plus', 15)}</button></div>` : ''}
+      <button class="check" data-act="toggle" data-id="${h.id}" data-quiet aria-pressed="${done}" aria-label="${done ? 'Undo' : 'Complete'} ${esc(h.name)}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
+      </button>
     </article>`;
   }
 
   function bossCard() {
     const b = A.S.boss;
-    if (!b) {
-      return `<section class="card glass boss-card empty"><p class="eyebrow">Weekly boss</p><p class="muted">Add a few quests and a boss will appear to hunt this week.</p></section>`;
-    }
+    if (!b) return `<section class="card glass boss-card empty"><p class="eyebrow">Weekly boss</p><p class="muted">Add a few quests and a boss will appear to hunt this week.</p></section>`;
     const left = Math.max(0, b.maxHp - b.dmg);
     const pct = Math.max(0, Math.min(100, (left / b.maxHp) * 100));
-    const end = A.addDays(b.week, 7);
-    const days = Math.max(0, A.diffDays(A.today(), end));
-    return `<section class="card glass boss-card ${b.defeated ? 'dead' : ''}">
-      <div class="boss-top"><p class="eyebrow">Weekly boss</p><span class="chip ${b.defeated ? 'xp' : 'time'}">${b.defeated ? 'Defeated' : days + (days === 1 ? ' day left' : ' days left')}</span></div>
+    const days = Math.max(0, A.diffDays(A.today(), A.addDays(b.week, 7)));
+    return `<section class="card glass boss-card ${b.defeated ? 'dead' : ''}" data-tilt>
+      <div class="boss-top"><p class="eyebrow">Weekly boss</p><span class="chip ${b.defeated ? 'xp' : ''}">${b.defeated ? 'Defeated' : days + (days === 1 ? ' day left' : ' days left')}</span></div>
       <div class="boss-body"><div class="boss-emoji">${b.emoji}</div>
         <div><h3>${esc(b.name)}</h3><p class="muted small">Every quest you complete lands a hit.</p></div></div>
-      <div class="boss-hp"><i style="width:${pct}%"></i><span>${b.defeated ? 'Slain' : `${left} / ${b.maxHp} HP`}</span></div>
+      <div class="boss-hp"><i style="width:${pct}%"></i></div>
+      <div class="boss-foot"><span>${b.defeated ? 'Slain' : `${left} / ${b.maxHp} HP`}</span><span>${Math.round(100 - pct)}% damage</span></div>
     </section>`;
   }
 
@@ -98,24 +99,21 @@
     if (dd.chest === 1)
       return `<section class="card glass chest-card ready"><button class="chest" data-act="openChest" data-quiet aria-label="Open daily chest"><span>🎁</span></button>
         <div><h3>Daily chest ready</h3><p class="muted small">Tap to open it.</p></div></section>`;
-    if (dd.chest === 2)
-      return `<section class="card glass chest-card opened"><div class="chest"><span>📭</span></div><div><h3>Chest opened</h3><p class="muted small">Come back tomorrow for another.</p></div></section>`;
+    if (dd.chest === 2) return `<section class="card glass chest-card opened"><div class="chest"><span>📭</span></div><div><h3>Chest opened</h3><p class="muted small">Another one tomorrow.</p></div></section>`;
     const need = Math.max(0, Math.ceil((info.total * thr) / 100) - info.done);
-    return `<section class="card glass chest-card locked"><div class="chest"><span>${icon('lock', 26)}</span></div>
-      <div><h3>Daily chest</h3><p class="muted small">${info.total ? `Complete ${need} more quest${need === 1 ? '' : 's'} to unlock it.` : 'Add quests to earn it.'}</p></div></section>`;
+    return `<section class="card glass chest-card locked"><div class="chest"><span>${icon('lock', 22)}</span></div>
+      <div><h3>Daily chest</h3><p class="muted small">${info.total ? `${need} more quest${need === 1 ? '' : 's'} to unlock.` : 'Add quests to earn it.'}</p></div></section>`;
   }
 
   function consistency(sk) {
-    return `<section class="card glass consistency"><div class="card-head"><div><h3>Consistency</h3><p class="muted small">${sk.current ? `${sk.current}-day streak 🔥` : 'Start a streak today'} · best ${sk.longest}</p></div><button class="link" data-act="go" data-to="insights">Insights</button></div>
+    return `<section class="card glass consistency"><div class="card-head"><div><h3>Consistency</h3><p class="muted small">${sk.current ? `${sk.current}-day streak` : 'Start a streak today'} · best ${sk.longest}</p></div><button class="link" data-act="go" data-to="insights">Insights</button></div>
       <div class="heat-scroll tight">${A.miniHeat(15, 13)}</div></section>`;
   }
 
   function upcoming() {
     const nowM = A.nowMin();
     const items = [];
-    A.S.alarms
-      .filter((a) => a.enabled && (!a.days.length || a.days.includes(new Date().getDay())))
-      .forEach((a) => items.push({ t: a.time, label: a.label || 'Alarm', icon: '⏰' }));
+    A.S.alarms.filter((a) => a.enabled && (!a.days.length || a.days.includes(new Date().getDay()))).forEach((a) => items.push({ t: a.time, label: a.label || 'Alarm', icon: '⏰' }));
     G.scheduledOn(A.today()).forEach((h) => {
       if (h.reminder && !G.isDone(h, A.today())) items.push({ t: h.reminder, label: h.name, icon: h.icon });
     });
@@ -128,7 +126,7 @@
   function pinned() {
     const list = A.S.notes.filter((n) => n.pinned).slice(0, 3);
     if (!list.length) return '';
-    return `<section class="card glass"><div class="card-head"><h3>Pinned notes</h3><button class="link" data-act="go" data-to="notes">Open board</button></div>
+    return `<section class="card glass"><div class="card-head"><h3>Pinned notes</h3><button class="link" data-act="go" data-to="notes">Board</button></div>
       <div class="pin-stack">${list.map((n) => `<div class="pin-note" style="--n:${n.hue}">${esc(n.text || 'Empty note').slice(0, 140)}</div>`).join('')}</div></section>`;
   }
 
@@ -149,15 +147,16 @@
   function mood(info, remaining, sk) {
     const P = A.S.player;
     if (!G.activeHabits().length) return 'Add your first quest to begin the climb.';
-    if (!info.total) return 'Nothing scheduled today. Rest up, or add a bonus quest.';
-    if (info.done === info.total) return 'Perfect day. Every quest cleared. Go enjoy your coins.';
+    if (!info.total) return 'Nothing scheduled today. Rest, or add a bonus quest.';
+    if (info.done === info.total) return 'Every quest cleared. Go enjoy your coins.';
     if (P.hp <= 25) return `HP is critical at ${P.hp}. One more bad day could end you.`;
     if (!info.done) return `${remaining.length} quest${remaining.length > 1 ? 's' : ''} waiting. ${sk.current ? `Don't let the ${sk.current}-day streak die.` : 'Start a streak today.'}`;
-    return `${info.done}/${info.total} done. Keep the momentum going.`;
+    return `${info.done} of ${info.total} done. Keep the momentum.`;
   }
 
   A.views.today = {
     title: 'Today',
+    mode: 'core',
     render(root) {
       const today = A.today();
       const sched = G.scheduledOn(today);
@@ -173,48 +172,43 @@
         return (a.reminder || '99:99').localeCompare(b.reminder || '99:99');
       });
       const extra = G.activeHabits().filter((h) => !h.days.includes(A.dow(today)));
+      const d = A.parse(today);
 
       root.innerHTML = `
-      <div class="page-head">
-        <p class="eyebrow">${A.prettyDate(today)}</p>
-        <h1>${A.greeting()}, <em>${esc(A.S.profile.name)}</em></h1>
-        <p class="sub">${mood(info, remaining, sk)}</p>
-      </div>
-      <div class="today-grid">
-        <div class="col">
-          <section class="card glass hero-card ${info.total && info.done === info.total ? 'perfect' : ''}">
-            <div class="ring-big">
-              <svg viewBox="0 0 120 120"><defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:hsl(var(--h) 95% 70%)"/><stop offset="1" style="stop-color:hsl(calc(var(--h) + 60) 95% 62%)"/></linearGradient></defs>
-                <circle class="trk" cx="60" cy="60" r="52"/><circle class="val" cx="60" cy="60" r="52" stroke="url(#rg)" stroke-dasharray="${CIRC}" stroke-dashoffset="${CIRC * (1 - ratio)}"/></svg>
-              <div class="ring-text"><b>${info.done}<small>/${info.total}</small></b><span>quests</span></div>
-            </div>
-            <div class="hero-side">
-              <div class="hero-stats">
-                <div><b>${sk.current}</b><span>day streak</span></div>
-                <div><b>${sk.longest}</b><span>best</span></div>
-                <div><b>${Math.round(ratio * 100)}%</b><span>today</span></div>
-              </div>
-              ${weekStrip()}
-              ${risk && remaining.length ? `<div class="risk">${icon('skull', 16)}<span>At risk tonight: <b>−${risk.hp} HP</b> · <b>−${risk.xp} XP</b> if you skip the rest</span></div>` : ''}
-            </div>
-          </section>
+      <div class="today">
+        <section class="hero ${info.total && info.done === info.total ? 'perfect' : ''}">
+          <div class="hero-top">
+            <p class="eyebrow">${A.DAYS[d.getDay()]} · ${d.getDate()} ${A.MONTHS[d.getMonth()]} · Week ${weekNo(today)}</p>
+            <h1>${A.greeting()},<br><em>${esc(A.S.profile.name)}.</em></h1>
+            <p class="lede">${mood(info, remaining, sk)}</p>
+          </div>
+          <div class="core-slot" data-core-slot aria-hidden="true"></div>
+          <div class="hero-foot">
+            <div class="big-stat"><b>${info.done}<small>/${info.total}</small></b><span>quests</span></div>
+            <div class="big-stat"><b>${sk.current}</b><span>day streak</span></div>
+            <div class="big-stat"><b>${Math.round(ratio * 100)}<small>%</small></b><span>today</span></div>
+          </div>
+          ${weekStrip()}
+          ${risk && remaining.length ? `<p class="risk">${icon('skull', 14)} At risk tonight: <b>−${risk.hp} HP</b> · <b>−${risk.xp} XP</b> if you skip the rest</p>` : ''}
+        </section>
 
-          <div class="section-head"><h2>Today’s quests</h2><button class="btn soft sm" data-act="newQuest">${icon('plus', 16)} New quest</button></div>
+        <section class="stream">
+          <div class="section-head first"><h2>Today’s <em>quests</em></h2><button class="btn soft sm" data-act="newQuest"><span>${icon('plus', 15)} New quest</span></button></div>
           ${
             sorted.length
               ? `<div class="quest-list">${sorted.map(questRow).join('')}</div>`
-              : `<div class="card glass empty-state"><div class="big-emoji">🗡️</div><h3>${G.activeHabits().length ? 'No quests scheduled today' : 'Your quest log is empty'}</h3><p class="muted">${G.activeHabits().length ? 'Enjoy the rest day, or add a quest for today.' : 'Create your first quest and start building a streak.'}</p><button class="btn primary" data-act="newQuest">${icon('plus', 16)} Create a quest</button></div>`
+              : `<div class="card glass empty-state"><div class="big-emoji">🗡️</div><h3>${G.activeHabits().length ? 'No quests scheduled today' : 'Your quest log is empty'}</h3><p class="muted">${G.activeHabits().length ? 'Enjoy the rest day, or add a quest for today.' : 'Create your first quest and start building a streak.'}</p><button class="btn primary" data-act="newQuest"><span>${icon('plus', 15)} Create a quest</span></button></div>`
           }
-          ${extra.length ? `<p class="muted small center">${extra.length} other quest${extra.length > 1 ? 's are' : ' is'} resting today.</p>` : ''}
-        </div>
-        <aside class="col side">
-          ${bossCard()}
-          ${chestCard(info)}
-          ${consistency(sk)}
-          ${upcoming()}
-          ${pinned()}
-          ${feed()}
-        </aside>
+          ${extra.length ? `<p class="muted small rest-note">${extra.length} other quest${extra.length > 1 ? 's are' : ' is'} resting today.</p>` : ''}
+          <div class="panels">
+            ${bossCard()}
+            ${chestCard(info)}
+            ${consistency(sk)}
+            ${upcoming()}
+            ${pinned()}
+            ${feed()}
+          </div>
+        </section>
       </div>`;
     },
   };
@@ -230,8 +224,8 @@
       A.ui.modal({
         cls: 'modal-sm levelup',
         html: `<div class="lu-burst"></div><div class="boss-emoji big">🎁</div><p class="eyebrow">Daily chest</p><h2>You found <em>${loot.coins} coins</em></h2>
-          ${loot.freeze ? '<p class="freeze-saved">' + icon('snow', 18) + ' Bonus: a Streak Freeze!</p>' : ''}${loot.heal ? '<p class="freeze-saved">' + icon('heart', 18) + ' Bonus: +20 HP!</p>' : ''}
-          <button class="btn primary lg" data-close>Nice</button>`,
+          ${loot.freeze ? '<p class="freeze-saved">' + icon('snow', 18) + ' Bonus: a Streak Freeze</p>' : ''}${loot.heal ? '<p class="freeze-saved">' + icon('heart', 18) + ' Bonus: +20 HP</p>' : ''}
+          <button class="btn primary lg" data-close><span>Nice</span></button>`,
       })
     );
   };

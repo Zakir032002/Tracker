@@ -1,0 +1,14 @@
+{
+  "name": "ascend",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Ascend: a gamified habit tracker",
+  "scripts": {
+    "build": "esbuild src/scene/index.js --bundle --minify --format=iife --target=es2020 --outfile=js/scene.bundle.js",
+    "watch": "esbuild src/scene/index.js --bundle --format=iife --target=es2020 --outfile=js/scene.bundle.js --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.5",
+    "three": "0.160.1"
+  }
+}

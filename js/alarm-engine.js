@@ -139,6 +139,7 @@
     document.body.appendChild(el);
     requestAnimationFrame(() => el.classList.add('in'));
     A.alarmStart(toneKey);
+    A.sound && A.sound.duck(true); // quiet the ambience while the alarm rings
     A.fx.vibrate([300, 150, 300, 150, 300]);
     notify(c);
 
@@ -180,6 +181,7 @@
 
   function stop() {
     A.alarmStop();
+    A.sound && A.sound.duck(false);
     clearInterval(titleTimer);
     clearTimeout(escTimer);
     clearTimeout(giveUpTimer);

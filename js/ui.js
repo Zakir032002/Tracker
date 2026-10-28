@@ -1,25 +1,32 @@
-/* Ascend — UI shell: theme, HUD, dock, router, modals, toasts, reactions */
+/* Ascend: UI shell. Theme, HUD, nav, router with curtain, modals, toasts,
+   3D placement/sync, and reactions to game events. */
 (function () {
   'use strict';
   const A = window.A;
-  const { $, esc, icon } = A;
+  const { $, $$, esc, icon } = A;
   const ui = (A.ui = {});
   A.views = {};
   A.actions = {};
+  const M = () => A.motion;
 
   /* ---------- theme ---------- */
+  A.resolvedTheme = () => {
+    const t = A.S.settings.theme;
+    return t === 'auto' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : t;
+  };
   A.applyTheme = () => {
     const s = A.S.settings;
-    let t = s.theme;
-    if (t === 'auto') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    if (!s.v2) {
+      s.v2 = true;
+      s.accent = 24; // v1 shipped neon hues; reset to the new palette once
+    }
+    const t = A.resolvedTheme();
     const root = document.documentElement;
     root.dataset.theme = t;
     root.style.setProperty('--h', s.accent);
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = t === 'light' ? '#eef0fb' : '#07060f';
-    const brands = (navigator.userAgentData && navigator.userAgentData.brands) || [];
-    const chromium = brands.some((b) => /Chromium/i.test(b.brand)) && !navigator.userAgentData.mobile;
-    root.classList.toggle('refract', chromium && s.refract !== false);
+    if (meta) meta.content = t === 'light' ? '#ece6da' : '#0a0908';
+    sync3D();
   };
 
   /* ---------- modal system ---------- */
@@ -29,8 +36,9 @@
   ui.modal = ({ html, cls = '', dismiss = true, onClose } = {}) => {
     const wrap = document.createElement('div');
     wrap.className = 'modal-wrap';
-    wrap.innerHTML = `<div class="modal-scrim"></div><div class="modal glass ${cls}" role="dialog" aria-modal="true" tabindex="-1">${html}</div>`;
+    wrap.innerHTML = `<div class="modal-scrim"></div><div class="modal glass ${cls}" role="dialog" aria-modal="true" tabindex="-1" data-lenis-prevent>${html}</div>`;
     $('#overlay').appendChild(wrap);
+    M().lock(true);
     let closed = false;
     const api = {
       el: wrap.querySelector('.modal'),
@@ -43,9 +51,10 @@
         wrap.classList.remove('in');
         setTimeout(() => {
           wrap.remove();
+          if (!stack.length) M().lock(false);
           if (onClose) onClose(result);
           pump();
-        }, 240);
+        }, 400);
       },
     };
     apis.set(wrap, api);
@@ -61,9 +70,7 @@
     const t = stack[stack.length - 1];
     if (t && t.dismiss) t.close();
   };
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') ui.closeTop();
-  });
+  document.addEventListener('keydown', (e) => e.key === 'Escape' && ui.closeTop());
   document.addEventListener('click', (e) => {
     const c = e.target.closest('[data-close]');
     if (!c) return;
@@ -71,8 +78,6 @@
     const api = wrap && apis.get(wrap);
     if (api) api.close(c.dataset.close);
   });
-
-  /* queued modals wait their turn (level up, penalties, boss, death…) */
   function pump() {
     if (stack.length || !queue.length) return;
     queue.shift()();
@@ -81,30 +86,27 @@
     queue.push(fn);
     pump();
   };
-
   ui.confirm = ({ title, text, ok = 'Confirm', danger = false, cancel = 'Cancel' }) =>
     new Promise((resolve) => {
-      const m = ui.modal({
+      ui.modal({
         cls: 'modal-sm',
         html: `<h3>${esc(title)}</h3><p class="muted">${text || ''}</p>
           <div class="row end gap"><button class="btn ghost" data-close="no">${esc(cancel)}</button>
-          <button class="btn ${danger ? 'danger' : 'primary'}" data-close="yes">${esc(ok)}</button></div>`,
+          <button class="btn ${danger ? 'danger' : 'primary'}" data-close="yes"><span>${esc(ok)}</span></button></div>`,
         onClose: (r) => resolve(r === 'yes'),
       });
-      return m;
     });
-
   ui.toast = (msg, { icon: ic = '', kind = '', ms = 3600 } = {}) => {
     const t = document.createElement('div');
     t.className = `toast glass ${kind}`;
     t.innerHTML = `${ic ? `<span class="toast-ic">${ic}</span>` : ''}<span>${msg}</span>`;
     const box = $('#toasts');
     box.appendChild(t);
-    while (box.children.length > 3) box.firstElementChild.remove(); // never let toasts bury the UI
+    while (box.children.length > 3) box.firstElementChild.remove();
     requestAnimationFrame(() => t.classList.add('in'));
     setTimeout(() => {
       t.classList.remove('in');
-      setTimeout(() => t.remove(), 400);
+      setTimeout(() => t.remove(), 500);
     }, ms);
   };
 
@@ -117,51 +119,12 @@
     if (el.classList.contains('btn') && !el.hasAttribute('data-quiet')) A.sfx('click');
     fn(el, e);
   });
-  A.actions.go = (el) => A.go(el.dataset.to);
-
-  /* ---------- HUD ---------- */
-  const CIRC = 2 * Math.PI * 21;
-  function renderHud() {
-    const P = A.S.player;
-    const li = A.G.levelInfo();
-    const sk = A.G.streak();
-    const hpPct = Math.round((P.hp / P.maxHp) * 100);
-    const hue = li.rank.hue;
-    $('#hud').innerHTML = `
-      <a class="brand" href="#today" aria-label="Ascend home"><span class="logo-mark"></span><b>Ascend</b></a>
-      <button class="hud-player" data-act="go" data-to="settings" aria-label="Profile and settings" style="--rank:${hue}">
-        <span class="ring"><svg viewBox="0 0 48 48"><circle class="trk" cx="24" cy="24" r="21"/><circle class="val" cx="24" cy="24" r="21" stroke-dasharray="${CIRC}" stroke-dashoffset="${CIRC * (1 - li.pct)}"/></svg>
-          <span class="av">${esc(A.S.profile.avatar)}</span><em class="lv">${li.level}</em></span>
-        <span class="who"><b>${esc(A.S.profile.name)}</b><small>${esc(li.rank.name)} · ${A.fmtNum(li.into)}/${A.fmtNum(li.need)} XP</small></span>
-      </button>
-      <div class="hud-stats">
-        <div class="stat hp ${A.G.hpClass()}" title="Health: missing quests costs HP. At 0 you are defeated.">
-          ${icon('heart', 16)}<div class="bar"><i style="width:${hpPct}%"></i></div><span class="num">${P.hp}</span>
-        </div>
-        <div class="stat coin" title="Coins">${icon('coin', 16)}<span class="num">${A.fmtNum(P.coins)}</span></div>
-        <div class="stat streak ${sk.current ? 'lit' : ''}" title="Current streak">${icon('flame', 16)}<span class="num">${sk.current}</span></div>
-        ${P.freezes ? `<div class="stat ice" title="Streak Freezes">${icon('snow', 15)}<span class="num">${P.freezes}</span></div>` : ''}
-        ${A.G.boostActive() ? `<div class="stat boost" title="Double XP active">${icon('bolt', 15)}<span class="num">2×</span></div>` : ''}
-      </div>
-      <div class="hud-tools">
-        <button class="icon-btn" data-act="toggleSound" aria-label="Toggle sound" title="Sound">${icon(A.S.settings.sound ? 'sound' : 'mute', 18)}</button>
-        <button class="icon-btn" data-act="toggleTheme" aria-label="Toggle theme" title="Theme">${icon(document.documentElement.dataset.theme === 'light' ? 'moon' : 'sun', 18)}</button>
-        <button class="icon-btn" data-act="go" data-to="settings" aria-label="Settings" title="Settings">${icon('settings', 18)}</button>
-      </div>`;
-  }
-  A.actions.toggleSound = () => {
-    A.S.settings.sound = !A.S.settings.sound;
-    if (A.S.settings.sound) A.sfx('pop');
-    A.save();
-  };
-  A.actions.toggleTheme = () => {
-    const cur = document.documentElement.dataset.theme;
-    A.S.settings.theme = cur === 'light' ? 'dark' : 'light';
-    A.applyTheme();
-    A.save();
+  A.actions.go = (el) => {
+    ui.closeTop();
+    A.go(el.dataset.to);
   };
 
-  /* ---------- dock ---------- */
+  /* ---------- nav model ---------- */
   const NAV = [
     ['today', 'Today'],
     ['quests', 'Quests'],
@@ -169,143 +132,290 @@
     ['notes', 'Notes'],
     ['alarms', 'Alarms'],
     ['focus', 'Focus'],
+    ['sanctuary', 'Sanctuary'],
     ['vault', 'Vault'],
   ];
-  function renderDock() {
-    const left = A.G.scheduledOn(A.today()).filter((h) => !A.G.isDone(h, A.today())).length;
+  const DOCK = ['today', 'quests', 'insights', 'sanctuary'];
+  const navIcon = (id) => (id === 'vault' ? 'trophy' : id === 'sanctuary' ? 'waves' : id);
+
+  function initChrome() {
+    $('#hud').innerHTML = `
+      <a class="brand" href="#today" aria-label="Ascend home"><span class="mark"></span><span>Ascend</span></a>
+      <nav class="topnav" aria-label="Primary">
+        <i class="nav-pill"></i>
+        ${NAV.map(([id, label], i) => `<a href="#${id}" data-nav="${id}"><i>0${i + 1}</i>${label}<b class="badge" hidden></b></a>`).join('')}
+      </nav>
+      <div class="hud-right" id="hud-right"></div>`;
     $('#dock').innerHTML =
       `<i class="dock-pill"></i>` +
-      NAV.map(
-        ([id, label]) =>
-          `<a href="#${id}" class="${A.view === id ? 'active' : ''}" data-nav="${id}" aria-label="${label}" ${A.view === id ? 'aria-current="page"' : ''}>
-            ${icon(id === 'today' ? 'today' : id === 'vault' ? 'trophy' : id, 22)}<span>${label}</span>${id === 'today' && left ? `<b class="badge">${left}</b>` : ''}</a>`
-      ).join('');
-    placePill();
+      DOCK.map((id) => `<a href="#${id}" data-nav="${id}" aria-label="${id}">${icon(navIcon(id), 20)}<span>${NAV.find((n) => n[0] === id)[1]}</span><b class="badge" hidden></b></a>`).join('') +
+      `<a href="#" data-act="menu" data-nav="more" aria-label="More">${icon('menu', 20)}<span>More</span></a>`;
+    A.$$('#hud a[data-nav], #dock a[data-nav]').forEach((a) =>
+      a.addEventListener('click', () => {
+        if (a.getAttribute('href') === '#') return;
+      })
+    );
   }
-  function placePill() {
-    const dock = $('#dock');
-    const pill = dock.querySelector('.dock-pill');
-    const a = dock.querySelector('a.active');
-    if (!pill) return;
-    if (!a) {
-      pill.style.opacity = 0;
-      return;
+
+  const CIRC = 2 * Math.PI * 19;
+  function updateHud() {
+    const P = A.S.player;
+    const li = A.G.levelInfo();
+    const sk = A.G.streak();
+    const hpPct = Math.round((P.hp / P.maxHp) * 100);
+    const playing = A.sound && A.sound.count > 0;
+    $('#hud-right').innerHTML = `
+      <div class="stat hp ${A.G.hpClass()}" title="Health. Missing quests costs HP; at 0 you are defeated."><span class="lbl">HP</span><span class="bar"><i style="width:${hpPct}%"></i></span><b>${P.hp}</b></div>
+      <div class="stat coin" title="Coins">${icon('coin', 14)}<span class="lbl">Coins</span><b>${A.fmtNum(P.coins)}</b></div>
+      <div class="stat streak ${sk.current ? 'lit' : ''}" title="Current streak">${icon('flame', 14)}<span class="lbl">Streak</span><b>${sk.current}</b></div>
+      ${P.freezes ? `<div class="stat" title="Streak Freezes">${icon('snow', 14)}<b>${P.freezes}</b></div>` : ''}
+      ${playing ? `<button class="mini-player" data-act="go" data-to="sanctuary" title="Open Sanctuary"><span class="eq"><i></i><i></i><i></i><i></i></span>Playing</button>` : ''}
+      <button class="avatar-btn" data-act="go" data-to="settings" aria-label="Profile and settings" title="${esc(A.S.profile.name)}: level ${li.level}, ${esc(li.rank.name)}">
+        <svg viewBox="0 0 44 44"><circle class="trk" cx="22" cy="22" r="19"/><circle class="val" cx="22" cy="22" r="19" stroke-dasharray="${CIRC}" stroke-dashoffset="${CIRC * (1 - li.pct)}"/></svg>
+        <span class="av">${esc(A.S.profile.avatar)}</span><em class="lv">${li.level}</em></button>`;
+    const left = A.G.scheduledOn(A.today()).filter((h) => !A.G.isDone(h, A.today())).length;
+    $$('[data-nav="today"] .badge').forEach((b) => {
+      b.hidden = !left;
+      b.textContent = left;
+    });
+    $$('#hud a[data-nav], #dock a[data-nav]').forEach((a) => {
+      const on = a.dataset.nav === A.view;
+      a.classList.toggle('active', on);
+      if (on) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    });
+    placePills();
+  }
+  function placePills() {
+    [['#hud .topnav', 'a.active', '.nav-pill', 5], ['#dock', 'a.active', '.dock-pill', 0]].forEach(([box, sel, pillSel]) => {
+      const b = $(box);
+      if (!b || !b.getClientRects().length) return;
+      const pill = $(pillSel, b);
+      const a = $(sel, b);
+      if (!pill) return;
+      if (!a) {
+        pill.style.opacity = 0;
+        return;
+      }
+      pill.style.opacity = 1;
+      pill.style.width = a.offsetWidth + 'px';
+      pill.style.height = a.offsetHeight + 'px';
+      pill.style.transform = `translate(${a.offsetLeft}px, ${a.offsetTop}px)`;
+    });
+  }
+  addEventListener('resize', A.debounce(() => {
+    placePills();
+    place3D();
+  }, 120));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(placePills);
+
+  A.actions.menu = () => {
+    const items = [['notes', 'Notes'], ['alarms', 'Alarms'], ['focus', 'Focus'], ['vault', 'Vault'], ['settings', 'Settings']];
+    ui.modal({
+      cls: 'modal-sm menu-sheet',
+      html: `<p class="eyebrow">Menu</p><ul class="menu-list">${items.map(([id, l], i) => `<li><button data-act="go" data-to="${id}" data-quiet><i>0${i + 1}</i><span>${l}</span></button></li>`).join('')}</ul>`,
+    });
+  };
+
+  /* ---------- 3D placement + state sync ---------- */
+  const g3 = () => (window.A3D && window.A3D.ready ? window.A3D : null);
+  function place3D() {
+    const s = g3();
+    if (!s) return;
+    const v = A.views[A.view];
+    const root = $('#view');
+    const mode = (v && v.mode) || 'core';
+    const W = innerWidth;
+    const H = innerHeight;
+    if (mode === 'sanctuary') return s.mode('sanctuary', { cx: 0.5, cy: 0.5 });
+    if (mode === 'skyline') {
+      const slot = $('[data-skyline-slot]', root);
+      const r = slot ? slot.getBoundingClientRect() : null;
+      return s.mode('skyline', { cx: 0.5, cy: r ? (r.top + r.height * 0.52) / H : 0.4, zoom: 1 });
     }
-    pill.style.opacity = 1;
-    pill.style.width = a.offsetWidth + 'px';
-    pill.style.height = a.offsetHeight + 'px';
-    pill.style.transform = `translate(${a.offsetLeft}px, ${a.offsetTop}px)`;
+    const slot = $('[data-core-slot]', root);
+    if (slot) {
+      const r = slot.getBoundingClientRect();
+      const zoom = A.clamp(Math.min(r.width, r.height) / H / 0.8, 0.22, 1.7);
+      return s.mode('core', { cx: (r.left + r.width / 2) / W, cy: (r.top + r.height / 2) / H, zoom });
+    }
+    // ambient: a quiet instrument in the corner
+    if (W < 900) return s.mode('core', { cx: 0.82, cy: 0.9, zoom: 0.3 });
+    s.mode('core', { cx: 0.9, cy: 0.82, zoom: 0.4 });
   }
-  addEventListener('resize', A.debounce(placePill, 100));
-  addEventListener('load', placePill);
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(placePill);
+  let sceneQueued = false;
+  A.place3D = place3D;
+  A.bus.on('scroll', () => {
+    if (sceneQueued) return;
+    sceneQueued = true;
+    requestAnimationFrame(() => {
+      sceneQueued = false;
+      place3D();
+    });
+  });
+  addEventListener('scroll', () => A.bus.emit('scroll'), { passive: true });
+
+  function sync3D() {
+    const s = g3();
+    if (!s || !A.S.onboarded) return;
+    const today = A.today();
+    const sched = A.G.scheduledOn(today);
+    const info = A.G.dayInfo(today);
+    const ws = A.weekStart(today, A.S.settings.weekStart);
+    const week = [];
+    for (let i = 0; i < 7; i++) {
+      const d = A.addDays(ws, i);
+      const di = A.G.dayInfo(d);
+      week.push({ kind: di ? di.status : 'future', today: d === today });
+    }
+    s.set({
+      progress: info && info.total ? info.done / info.total : 0,
+      hp: A.S.player.hp / A.S.player.maxHp,
+      quests: sched.map((h) => ({ done: A.G.isDone(h, today), hue: h.hue })),
+      week,
+      hue: A.S.settings.accent,
+      theme: A.resolvedTheme(),
+    });
+  }
+  A.sync3D = sync3D;
+  document.addEventListener('a3d-ready', () => {
+    const s = g3();
+    if (s) s.quality(A.S.settings.quality === 'low' ? 'low' : 'high');
+    if (A.S.settings.quality === 'off') document.documentElement.classList.add('no-webgl');
+    sync3D();
+    place3D();
+    if (A.introPending) s && s.intro();
+  });
 
   /* ---------- router ---------- */
   A.view = 'today';
+  let prevView = null;
   A.go = (name) => {
     if (location.hash.slice(1) === name) renderView(true);
     else location.hash = name;
   };
-  function currentFromHash() {
+  const fromHash = () => {
     const h = location.hash.slice(1);
     return A.views[h] ? h : 'today';
-  }
-  let prevView = null;
-  function renderView(enter) {
+  };
+
+  function renderView(enter, delay) {
     const root = $('#view');
-    const name = A.view;
-    const v = A.views[name];
+    const v = A.views[A.view];
     if (!v) return;
-    if (enter && prevView && prevView !== name && A.views[prevView].unmount) A.views[prevView].unmount();
     const y = window.scrollY;
     if (enter || !v.update) {
-      root.dataset.view = name;
+      root.dataset.view = A.view;
+      document.body.classList.toggle('night', A.view === 'sanctuary');
       v.render(root);
       if (enter) {
-        root.classList.remove('enter');
-        void root.offsetWidth;
-        root.classList.add('enter');
         window.scrollTo(0, 0);
-        document.title = `${v.title || name} · Ascend`;
-      } else window.scrollTo(0, y);
-    } else v.update(root);
-    if (enter && v.mount) v.mount(root);
-    prevView = name;
+        const lz = M().lenis();
+        if (lz) lz.scrollTo(0, { immediate: true });
+        document.title = `${v.title || A.view} · Ascend`;
+        place3D();
+        M().enter(root, delay || 0);
+        if (v.mount) v.mount(root);
+      } else {
+        window.scrollTo(0, y);
+        place3D();
+      }
+    } else {
+      v.update(root);
+    }
+    updateHud();
   }
+
   let queued = false;
   A.rerender = () => {
     if (queued) return;
     queued = true;
     requestAnimationFrame(() => {
       queued = false;
-      renderHud();
-      renderDock();
+      sync3D();
       renderView(false);
     });
   };
-  A.navigate = () => {
-    const next = currentFromHash();
-    if (next !== A.view || !prevView) {
+
+  A.navigate = (instant) => {
+    const next = fromHash();
+    const changed = next !== A.view || !prevView;
+    const old = prevView && A.views[prevView];
+    if (changed && old && old.unmount) old.unmount();
+    const go = () => {
       A.view = next;
+      renderView(true, instant ? 0 : 0.25);
+      prevView = next;
+    };
+    if (changed && prevView && !instant) {
       A.sfx('tab');
+      M().curtain(go);
+    } else {
+      go();
     }
-    renderHud();
-    renderDock();
-    renderView(true);
   };
-  addEventListener('hashchange', A.navigate);
+  addEventListener('hashchange', () => A.navigate());
   A.bus.on('change', A.rerender);
+  A.renderChrome = () => updateHud();
+  A.initChrome = initChrome;
 
   /* ---------- reactions to game events ---------- */
   A.bus.on('complete', ({ habit, xp, coins, crit }) => {
-    const el = document.querySelector(`[data-habit="${habit.id}"] .check`) || document.querySelector(`[data-habit="${habit.id}"]`);
+    const el = document.querySelector(`[data-habit="${habit.id}"] .check`);
     if (el) {
       const r = el.getBoundingClientRect();
       const x = r.left + r.width / 2;
       const y = r.top + r.height / 2;
-      A.fx.confetti({ x, y, count: crit ? 70 : 26, power: crit ? 12 : 7, spread: crit ? 6.3 : 2.4 });
-      A.fx.float(x, y - 10, `${crit ? '<b>CRIT!</b> ' : ''}+${xp} XP`, crit ? 'crit' : 'xp');
-      setTimeout(() => A.fx.float(x + 20, y + 14, `+${coins} ${icon('coin', 14)}`, 'coin'), 160);
+      A.fx.confetti({ x, y, count: crit ? 60 : 22, power: crit ? 11 : 6, spread: crit ? 6.3 : 2.2 });
+      A.fx.float(x - 10, y - 14, `${crit ? 'Critical ' : ''}+${xp} XP`, crit ? 'crit' : 'xp');
+      setTimeout(() => A.fx.float(x + 24, y + 12, `+${coins}c`, 'coin'), 180);
     }
+    const s = g3();
+    s && s.pulse(crit ? 'crit' : 'complete');
     A.fx.vibrate(crit ? [20, 30, 40] : 15);
   });
-  A.bus.on('damage', ({ amount, reason }) => {
+  A.bus.on('damage', ({ amount }) => {
     A.fx.shake();
     A.fx.vignette('damage');
     A.sfx('damage');
     A.fx.vibrate([60, 40, 90]);
+    const s = g3();
+    s && s.pulse('damage');
     const hp = document.querySelector('.hud .stat.hp');
     if (hp) {
       const r = hp.getBoundingClientRect();
-      A.fx.float(r.left + 20, r.bottom + 6, `−${amount} HP`, 'dmg');
+      A.fx.float(r.left + 30, r.bottom + 14, `−${amount} HP`, 'dmg');
     }
   });
   A.bus.on('levelup', (d) => {
+    const s = g3();
+    s && s.pulse('level');
     ui.enqueue(() => {
       A.sfx('level');
       A.fx.celebrate();
       A.fx.vibrate([40, 40, 40, 40, 120]);
       ui.modal({
         cls: 'modal-sm levelup',
-        html: `<div class="lu-burst"></div><div class="lu-badge" style="--rank:${d.rank.hue}"><span>${d.level}</span></div>
-          <p class="eyebrow">Level up</p><h2>You reached <em>Level ${d.level}</em></h2>
+        html: `<div class="lu-burst"></div><div class="lu-badge"><span>${d.level}</span></div>
+          <p class="eyebrow">Level up</p><h2>You reached <em>level ${d.level}</em></h2>
           <p class="rank-line">${esc(d.rank.name)}</p>
-          <p class="muted">Bonus reward: <b class="gold">+${d.bonus} coins</b></p>
-          <button class="btn primary lg" data-close>Keep climbing</button>`,
+          <p class="muted">Bonus: <b class="gold">+${d.bonus} coins</b></p>
+          <button class="btn primary lg" data-close><span>Keep climbing</span></button>`,
       });
     });
   });
   A.bus.on('achievement', (a) => {
     A.sfx('achievement');
-    A.fx.confetti({ x: innerWidth / 2, y: 80, count: 40, power: 8, spread: 3 });
     ui.toast(`<b>${esc(a.name)}</b><small>${esc(a.desc)}</small>`, { icon: a.icon, kind: `ach ${a.rarity}`, ms: 5000 });
   });
   A.bus.on('perfect', ({ xp, coins }) => {
     A.sfx('perfect');
     A.fx.celebrate();
-    ui.toast(`<b>Perfect day!</b><small>+${xp} XP · +${coins} coins bonus</small>`, { icon: '💎', kind: 'ach epic', ms: 5000 });
+    const s = g3();
+    s && s.pulse('perfect');
+    ui.toast(`<b>Perfect day</b><small>+${xp} XP · +${coins} coins bonus</small>`, { icon: '💎', kind: 'ach epic', ms: 5000 });
   });
-  A.bus.on('chest-ready', () => ui.toast(`<b>Daily chest unlocked</b><small>Open it on the Today screen</small>`, { icon: '🎁', kind: 'ach rare' }));
+  A.bus.on('chest-ready', () => ui.toast(`<b>Daily chest unlocked</b><small>Open it on the Today screen</small>`, { icon: '🎁', kind: 'ach' }));
   A.bus.on('boss-hit', () => {
     const b = document.querySelector('.boss-card');
     if (b) {
@@ -324,12 +434,14 @@
         html: `<div class="lu-burst"></div><div class="boss-emoji big">${b.emoji}</div>
           <p class="eyebrow">Victory</p><h2>${esc(b.name)} <em>defeated</em></h2>
           <p class="muted">Reward: <b class="gold">+100 XP · +40 coins</b></p>
-          <button class="btn primary lg" data-close>Claim glory</button>`,
+          <button class="btn primary lg" data-close><span>Claim glory</span></button>`,
       });
     });
   });
   A.bus.on('boss-escaped', (b) => ui.toast(`<b>${esc(b.name)} got away</b><small>You didn't finish it last week. A new boss approaches.</small>`, { icon: b.emoji, kind: 'warn', ms: 6000 }));
   A.bus.on('death', (d) => {
+    const s = g3();
+    s && s.pulse('death');
     ui.enqueue(() => {
       A.sfx('death');
       A.fx.vignette('death');
@@ -339,17 +451,17 @@
         cls: 'modal-sm death',
         dismiss: false,
         html: `<div class="skull">${icon('skull', 64)}</div>
-          <p class="eyebrow danger">Health reached zero</p><h2>YOU DIED</h2>
+          <p class="eyebrow danger">Health reached zero</p><h2>You died</h2>
           <p class="muted">Slacking has consequences. You lost <b class="danger-t">${d.lostCoins} coins</b>${d.lostXp ? ` and <b class="danger-t">${d.lostXp} XP</b>` : ''}${d.levelDrop ? ' and a whole level (Hardcore)' : ''}.
           ${d.lostFreezes ? 'Your Streak Freezes shattered. ' : ''}You wake up at half health.</p>
-          <button class="btn danger lg" data-close>Rise again</button>`,
+          <button class="btn danger lg" data-close><span>Rise again</span></button>`,
       });
     });
   });
   A.bus.on('report', (r) => {
     const bad = r.hp || r.broken || r.xp || r.coins;
     if (!bad) {
-      if (r.days) ui.toast(`<b>${r.days === 1 ? 'Yesterday' : r.days + ' days'} cleared</b><small>No penalties. Keep the streak alive.</small>`, { icon: '🛡️', kind: 'ach rare' });
+      if (r.days) ui.toast(`<b>${r.days === 1 ? 'Yesterday' : r.days + ' days'} cleared</b><small>No penalties. Keep the streak alive.</small>`, { icon: '🛡️', kind: 'ach' });
       return;
     }
     ui.enqueue(() => {
@@ -366,35 +478,44 @@
         html: `<p class="eyebrow danger">${multi ? `While you were away · ${r.days} days` : 'Yesterday’s toll'}</p>
           <h2>${r.missed.length ? `You skipped <em>${r.missed.length}</em> quest${r.missed.length > 1 ? 's' : ''}` : 'Your streak slipped'}</h2>
           <div class="toll-stats">
-            ${r.hp ? `<div class="t hp">${icon('heart', 18)}<b>−${r.hp}</b><small>HP</small></div>` : ''}
-            ${r.xp ? `<div class="t xp">${icon('bolt', 18)}<b>−${r.xp}</b><small>XP</small></div>` : ''}
-            ${r.coins ? `<div class="t coin">${icon('coin', 18)}<b>−${r.coins}</b><small>coins</small></div>` : ''}
+            ${r.hp ? `<div class="t">${icon('heart', 18)}<b>−${r.hp}</b><small>HP</small></div>` : ''}
+            ${r.xp ? `<div class="t">${icon('bolt', 18)}<b>−${r.xp}</b><small>XP</small></div>` : ''}
+            ${r.coins ? `<div class="t">${icon('coin', 18)}<b>−${r.coins}</b><small>coins</small></div>` : ''}
           </div>
           ${r.broken && r.prevStreak ? `<p class="streak-lost">${icon('flame', 18)} Your <b>${r.prevStreak}-day streak</b> has ended.</p>` : ''}
           ${r.frozen ? `<p class="freeze-saved">${icon('snow', 18)} ${r.frozen} Streak Freeze${r.frozen > 1 ? 's' : ''} saved your streak.</p>` : ''}
           ${missedHtml ? `<ul class="missed-list">${missedHtml}</ul>` : ''}
-          <button class="btn danger lg" data-close>Redeem myself today</button>`,
+          <button class="btn danger lg" data-close><span>Redeem myself today</span></button>`,
       });
     });
   });
+  A.bus.on('sound-change', () => updateHud());
 
-  /* ---------- emoji / swatch data shared by editors ---------- */
+  /* ---------- shared editor data ---------- */
   ui.EMOJI = ['💧', '🏃', '📖', '🧘', '💤', '💻', '🥗', '📝', '🚫', '🧹', '💪', '🎯', '🎸', '🎨', '📚', '🧠', '🍎', '🚴', '🏊', '☀️', '🌙', '🧴', '🦷', '🛏️', '💊', '📵', '🌱', '🐕', '☎️', '💰', '🗣️', '✍️', '🎧', '🧩', '🥦', '🚿', '🙏', '❤️', '⏰', '🔥'];
   ui.AVATARS = ['🦊', '🐺', '🦁', '🐯', '🐲', '🦉', '🦄', '🐼', '🐙', '🦅', '🤖', '👾', '🧙', '🥷', '🧑‍🚀', '🦸'];
-  ui.HUES = [265, 200, 170, 140, 85, 45, 20, 350, 320];
+  ui.HUES = [24, 8, 42, 85, 150, 190, 215, 255, 320]; // muted earth + cool tones
+  ui.ACCENTS = [
+    { h: 24, name: 'Copper' },
+    { h: 150, name: 'Sage' },
+    { h: 205, name: 'Glacier' },
+    { h: 8, name: 'Clay' },
+    { h: 255, name: 'Dusk' },
+    { h: 42, name: 'Brass' },
+  ];
 
   /* ---------- onboarding ---------- */
   const PRESETS = [
-    { icon: '💧', name: 'Drink 8 glasses of water', diff: 'easy', hue: 200, target: 8, unit: 'glasses' },
-    { icon: '🏃', name: 'Exercise 30 minutes', diff: 'hard', hue: 20, target: 1 },
-    { icon: '📖', name: 'Read 20 pages', diff: 'medium', hue: 265, target: 1 },
-    { icon: '🧘', name: 'Meditate', diff: 'easy', hue: 170, target: 1 },
-    { icon: '💤', name: 'Sleep before 11 PM', diff: 'medium', hue: 240, target: 1 },
-    { icon: '💻', name: 'Deep work: 2 hours', diff: 'hard', hue: 45, target: 1 },
-    { icon: '🥗', name: 'Eat clean today', diff: 'medium', hue: 140, target: 1 },
+    { icon: '💧', name: 'Drink 8 glasses of water', diff: 'easy', hue: 205, target: 8, unit: 'glasses' },
+    { icon: '🏃', name: 'Exercise 30 minutes', diff: 'hard', hue: 24, target: 1 },
+    { icon: '📖', name: 'Read 20 pages', diff: 'medium', hue: 255, target: 1 },
+    { icon: '🧘', name: 'Meditate', diff: 'easy', hue: 150, target: 1 },
+    { icon: '💤', name: 'Sleep before 11 PM', diff: 'medium', hue: 215, target: 1 },
+    { icon: '💻', name: 'Deep work: 2 hours', diff: 'hard', hue: 42, target: 1 },
+    { icon: '🥗', name: 'Eat clean today', diff: 'medium', hue: 85, target: 1 },
     { icon: '📝', name: 'Write in journal', diff: 'easy', hue: 320, target: 1 },
-    { icon: '📵', name: 'No doom-scrolling', diff: 'hard', hue: 350, target: 1 },
-    { icon: '🧹', name: 'Tidy up 10 minutes', diff: 'easy', hue: 85, target: 1 },
+    { icon: '📵', name: 'No doom-scrolling', diff: 'hard', hue: 8, target: 1 },
+    { icon: '🧹', name: 'Tidy up 10 minutes', diff: 'easy', hue: 190, target: 1 },
   ];
   ui.PRESETS = PRESETS;
   ui.onboarding = () => {
@@ -406,10 +527,10 @@
       html: `<p class="eyebrow">Welcome to</p><h1 class="display">Ascend<span>.</span></h1>
         <p class="muted lead">Turn your habits into a game. Complete quests to earn XP and coins, build streaks, and fight a weekly boss. Skip them and you lose health. Your progress is saved on this device automatically.</p>
         <label class="field"><span>Hero name</span><input id="ob-name" class="input" maxlength="20" placeholder="What should we call you?" value=""></label>
-        <div class="field"><span>Pick an avatar</span><div class="emoji-grid" id="ob-av">${ui.AVATARS.map((e) => `<button type="button" class="emo ${e === avatar ? 'on' : ''}" data-e="${e}">${e}</button>`).join('')}</div></div>
-        <div class="field"><span>Choose starter quests <small class="muted">(you can edit them later)</small></span>
-          <div class="preset-grid" id="ob-presets">${PRESETS.map((p, i) => `<button type="button" class="preset ${picked.has(i) ? 'on' : ''}" data-i="${i}" style="--c:${p.hue}"><span>${p.icon}</span>${esc(p.name)}</button>`).join('')}</div></div>
-        <button class="btn primary lg block" id="ob-go">Begin the journey</button>`,
+        <div class="field"><span>Avatar</span><div class="emoji-grid" id="ob-av">${ui.AVATARS.map((e) => `<button type="button" class="emo ${e === avatar ? 'on' : ''}" data-e="${e}">${e}</button>`).join('')}</div></div>
+        <div class="field"><span>Starter quests <small class="muted">(edit anytime)</small></span>
+          <div class="preset-grid" id="ob-presets">${PRESETS.map((p, i) => `<button type="button" class="preset ${picked.has(i) ? 'on' : ''}" data-i="${i}"><span>${p.icon}</span>${esc(p.name)}</button>`).join('')}</div></div>
+        <button class="btn primary lg block" id="ob-go"><span>Begin the ascent</span></button>`,
     });
     m.el.addEventListener('click', (e) => {
       const em = e.target.closest('.emo');
@@ -433,16 +554,13 @@
         picked.forEach((i) => A.G.addHabit(PRESETS[i]));
         A.sfx('level');
         A.fx.celebrate();
+        const s = g3();
+        s && s.pulse('level');
         m.close();
         A.save();
         A.persistStorage();
       }
     });
-    setTimeout(() => m.el.querySelector('#ob-name').focus({ preventScroll: true }), 400);
-  };
-
-  A.renderChrome = () => {
-    renderHud();
-    renderDock();
+    setTimeout(() => m.el.querySelector('#ob-name').focus({ preventScroll: true }), 600);
   };
 })();

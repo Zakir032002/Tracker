@@ -1,12 +1,15 @@
 /* Ascend service worker: works offline. Network-first so updates show up, cache as fallback. */
-const CACHE = 'ascend-v1';
+const CACHE = 'ascend-v2';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'assets/icon.svg',
+  'assets/fonts/instrument-serif-latin-400-normal.woff2', 'assets/fonts/instrument-serif-latin-400-italic.woff2',
+  'assets/fonts/geist-latin-wght-normal.woff2', 'assets/fonts/geist-mono-latin-wght-normal.woff2',
   'css/theme.css', 'css/components.css', 'css/views.css',
-  'js/util.js', 'js/store.js', 'js/audio.js', 'js/game.js', 'js/fx.js', 'js/ui.js',
+  'vendor/gsap.min.js', 'vendor/lenis.min.js',
+  'js/util.js', 'js/store.js', 'js/audio.js', 'js/sound.js', 'js/game.js', 'js/fx.js', 'js/motion.js', 'js/ui.js',
   'js/views/today.js', 'js/views/quests.js', 'js/views/insights.js', 'js/views/notes.js',
-  'js/views/alarms.js', 'js/views/focus.js', 'js/views/vault.js', 'js/views/settings.js',
-  'js/alarm-engine.js', 'js/main.js',
+  'js/views/alarms.js', 'js/views/focus.js', 'js/views/sanctuary.js', 'js/views/vault.js', 'js/views/settings.js',
+  'js/alarm-engine.js', 'js/scene.bundle.js', 'js/main.js',
 ];
 
 self.addEventListener('install', (e) => {
@@ -23,7 +26,7 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(req)
       .then((res) => {
-        if (res.ok && (new URL(req.url).origin === location.origin || /fonts\.(googleapis|gstatic)\.com/.test(req.url))) {
+        if (res.ok && res.status === 200 && new URL(req.url).origin === location.origin) {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(req, copy));
         }

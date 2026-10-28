@@ -597,6 +597,8 @@
       early: st.early || 0,
       night: st.night || 0,
       lowHp: S().player.hp > 0 && S().player.hp <= 10,
+      ambient: st.ambient || 0,
+      binaural: st.binaural || 0,
     };
   };
   const cnt = (id, icon, name, desc, rarity, key, n) => ach(id, icon, name, desc, rarity, (c) => c[key] >= n, (c) => [Math.min(c[key], n), n]);
@@ -636,6 +638,8 @@
     ach('night', '🦉', 'Night Owl', 'Complete a quest after 11 PM', 'rare', (c) => c.night > 0),
     ach('epicq', '🔱', 'Go Big', 'Create an Epic-difficulty quest', 'common', (c) => c.epic),
     ach('dead', '💀', 'Humbled', 'Get defeated once. It happens.', 'common', (c) => c.deaths >= 1),
+    ach('ambient', '🌧️', 'Into the Quiet', 'Play a sound in the Sanctuary', 'common', (c) => c.ambient > 0),
+    ach('binaural', '🎧', 'Tuned In', 'Start a binaural session', 'common', (c) => c.binaural > 0),
     ach('close', '🩹', 'Living Dangerously', 'Survive with 10 HP or less', 'rare', (c) => c.lowHp),
   ];
 

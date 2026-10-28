@@ -301,12 +301,67 @@
     return `<section class="card glass"><div class="card-head"><div><h3>Quest leaderboard</h3><p class="muted small">30-day completion rate</p></div></div><ul class="lb">${rows}</ul></section>`;
   }
 
+  /* ---------- 3D skyline data (same range as the flat grid) ---------- */
+  let skyDates = [];
+  let skyKey = '';
+  function pushSkyline(force) {
+    if (!window.A3D || !window.A3D.ready) return;
+    const key = `${yearSel}|${innerWidth < 700}|${A.today()}|${A.S.settings.accent}|${A.resolvedTheme()}|${A.S.stats.done}`;
+    if (!force && key === skyKey) return;
+    skyKey = key;
+    const today = A.today();
+    const created = A.fmt(new Date(A.S.createdAt));
+    let start;
+    let end;
+    if (yearSel === 'rolling') {
+      end = today;
+      start = A.addDays(end, innerWidth < 700 ? -181 : -364);
+    } else {
+      start = `${yearSel}-01-01`;
+      end = `${yearSel}-12-31`;
+    }
+    const gridStart = A.weekStart(start, A.S.settings.weekStart);
+    const cols = Math.min(53, Math.ceil((A.diffDays(gridStart, end) + 1) / 7));
+    const days = [];
+    skyDates = [];
+    for (let i = 0; i < cols * 7; i++) {
+      const d = A.addDays(gridStart, i);
+      const ok = d >= start && d <= end && d <= today;
+      const info = ok && !(d < created && !A.S.days[d]) ? G.dayInfo(d) : null;
+      days.push(info);
+      skyDates.push(ok ? d : null);
+    }
+    window.A3D.skyline(days, cols, A.S.settings.accent, A.resolvedTheme() === 'light');
+  }
+
+  let lastPtr = { x: 0, y: 0 };
+  addEventListener('pointermove', (e) => (lastPtr = { x: e.clientX, y: e.clientY }), { passive: true });
+  function onSkyHover(h) {
+    const tip = document.getElementById('sky-tip');
+    if (!tip) return;
+    const slot = document.querySelector('[data-skyline-slot]');
+    const r = slot && slot.getBoundingClientRect();
+    if (!h || !skyDates[h.index] || !r || lastPtr.y < r.top || lastPtr.y > r.bottom) {
+      tip.classList.remove('on');
+      return;
+    }
+    const d = skyDates[h.index];
+    tip.textContent = tipText(d, G.dayInfo(d));
+    tip.style.left = h.x + 'px';
+    tip.style.top = h.y + 'px';
+    tip.classList.add('on');
+  }
+
   A.views.insights = {
     title: 'Insights',
+    mode: 'skyline',
     render(root) {
       root.innerHTML = `
-      <div class="page-head"><p class="eyebrow">Your consistency</p><h1>Streaks &amp; <em>insights</em></h1>
-        <p class="sub">Every square is a day you showed up. Keep the grid lit.</p></div>
+      <div class="sky-hero" data-skyline-slot>
+        <div class="page-head"><p class="eyebrow">Your consistency</p><h1 data-split>Streaks &amp;<br><em>skyline.</em></h1></div>
+        <p class="sky-hint">Every tower is a day · taller means more quests done</p>
+      </div>
+      <div class="sky-tip" id="sky-tip"></div>
       ${tiles()}
       ${yearGrid()}
       <div class="two-col">${monthCal()}${monthsOverview()}</div>
@@ -314,6 +369,17 @@
       ${questBoard()}`;
       const sc = root.querySelector('#heat-scroll');
       if (sc) sc.scrollLeft = sc.scrollWidth;
+      pushSkyline();
+    },
+    mount() {
+      if (window.A3D) window.A3D.onHover(onSkyHover);
+      pushSkyline(true);
+    },
+    unmount() {
+      if (window.A3D && window.A3D.ready) {
+        window.A3D.onHover(null);
+        window.A3D.interactive(false);
+      }
     },
   };
 
