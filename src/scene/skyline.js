@@ -59,6 +59,14 @@ export function createSkyline(envMap) {
   marker.visible = false;
   root.add(marker);
 
+  // glowing caps on perfect days
+  const capMat = new THREE.MeshStandardMaterial({ color: 0xf2e8d8, emissive: 0xd9955f, emissiveIntensity: 1.4, roughness: 0.25, metalness: 0.6, envMap });
+  const caps = new THREE.InstancedMesh(new THREE.OctahedronGeometry(0.075, 0), capMat, MAX);
+  caps.count = 0;
+  caps.frustumCulled = false;
+  root.add(caps);
+  let capIdx = [];
+
   /* ---- data ---- */
   let days = [];
   let cols = 0;
@@ -72,8 +80,19 @@ export function createSkyline(envMap) {
   const dummy = new THREE.Object3D();
   const col = new THREE.Color();
   let light = false;
+  let themeName = 'dark';
 
   const colorFor = (d, i, hot) => {
+    if (themeName === 'rose') {
+      if (!d) return col.setHSL(0.97, 0.25, 0.9);
+      if (d.status === 'frozen') col.setHSL(0.57, 0.4, 0.74);
+      else if (d.status === 'broken' || (d.total && !d.done && d.closed)) col.setHSL(0.99, 0.35, 0.62);
+      else if (!d.total) col.setHSL(0.97, 0.2, 0.88);
+      else if (d.ratio >= 1) col.setHSL(0.105, 0.78, 0.6); // champagne gold
+      else col.setHSL(0.965 + d.ratio * 0.01, 0.5 + d.ratio * 0.2, 0.84 - d.ratio * 0.3); // blush -> rose
+      if (hot) col.offsetHSL(0, 0.05, -0.06);
+      return col;
+    }
     if (!d) return col.setHSL(0.08, 0.05, light ? 0.78 : 0.14);
     let h = accentHue / 360;
     let s = 0.5;
@@ -102,11 +121,15 @@ export function createSkyline(envMap) {
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }
 
-  function setData(list, ncols, hue, isLight) {
+  function setData(list, ncols, hue, theme) {
     days = list;
     cols = ncols;
     accentHue = hue;
-    light = !!isLight;
+    themeName = theme || 'dark';
+    light = themeName !== 'dark';
+    capIdx = [];
+    list.forEach((d, i) => d && d.total && d.ratio >= 1 && capIdx.push(i));
+    caps.count = capIdx.length;
     mesh.count = list.length;
     const rows = 7;
     const w = (cols - 1) * GAP;
@@ -157,6 +180,16 @@ export function createSkyline(envMap) {
       mesh.setMatrixAt(i, dummy.matrix);
     }
     mesh.instanceMatrix.needsUpdate = true;
+    for (let k = 0; k < capIdx.length; k++) {
+      const i = capIdx[k];
+      dummy.position.set(pos[i][0], cur[i] + 0.11 + Math.sin(t * 1.6 + i) * 0.025, pos[i][1]);
+      dummy.rotation.set(0, t * 1.2 + i, 0);
+      dummy.scale.setScalar(cur[i] > 0.2 ? 1 : 0.001);
+      dummy.updateMatrix();
+      caps.setMatrixAt(k, dummy.matrix);
+    }
+    dummy.rotation.set(0, 0, 0);
+    caps.instanceMatrix.needsUpdate = true;
     if (marker.visible && days.length) {
       const i = days.length - 1;
       marker.position.set(pos[i][0], cur[i] + 0.3 + Math.sin(t * 2.4) * 0.05, pos[i][1]);
@@ -174,12 +207,26 @@ export function createSkyline(envMap) {
     t0 = 999;
   }
 
-  function setTheme(isLight) {
-    light = !!isLight;
-    floorMat.color.set(isLight ? 0xd9d1c3 : 0x0d0b09);
-    gridBase = isLight ? 0.08 : 0.035;
+  function setTheme(theme) {
+    themeName = theme;
+    light = theme !== 'dark';
+    const rose = theme === 'rose';
+    floorMat.color.set(rose ? 0xf6e0de : light ? 0xd9d1c3 : 0x0d0b09);
+    floorMat.roughness = rose ? 0.34 : 0.92;
+    floorMat.metalness = rose ? 0.1 : 0;
+    floorMat.envMapIntensity = rose ? 0.7 : 0.15;
+    mat.metalness = rose ? 0.45 : 0.3;
+    mat.roughness = rose ? 0.32 : 0.5;
+    mat.envMapIntensity = rose ? 0.9 : 0.55;
+    key.color.set(rose ? 0xfff1e6 : 0xffe2c4);
+    key.intensity = rose ? 3.0 : 2.0;
+    rim.color.set(rose ? 0xf4b8c8 : 0x9fb8d0);
+    capMat.color.set(rose ? 0xfff0c8 : 0xf2e8d8);
+    capMat.emissive.set(rose ? 0xf3c76b : 0xd9955f);
+    marker.material.emissive.set(rose ? 0xf3c76b : 0xd9955f);
+    gridBase = rose ? 0.06 : light ? 0.08 : 0.035;
     grid.material.opacity = gridBase;
-    grid.material.color.set(isLight ? 0x000000 : 0xffffff);
+    grid.material.color.set(rose ? 0xb9708a : light ? 0x000000 : 0xffffff);
     paint();
   }
 

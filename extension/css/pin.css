@@ -1,0 +1,37 @@
+/* Compact styles for the floating pin window and the Chrome side panel (shared look). */
+html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 13.5px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+*, *::before, *::after { box-sizing: border-box; }
+.pin { padding: 16px 16px 20px; display: flex; flex-direction: column; gap: 0; }
+.pin header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.pin header b { font-family: var(--serif); font-weight: 400; font-size: 1.5rem; letter-spacing: -0.01em; display: block; line-height: 1.05; }
+.pin header small { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+.pin-stats { display: flex; gap: 10px; font-family: var(--mono); font-size: 0.7rem; color: var(--ink-2); white-space: nowrap; padding-top: 4px; }
+.pin-bar { height: 3px; border-radius: 3px; background: var(--line-2); margin: 14px 0 6px; overflow: hidden; }
+.pin-bar i { display: block; height: 100%; background: var(--accent); transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+:root[data-theme='rose'] .pin-bar i { background: linear-gradient(115deg, #a97a22, #e9cb7e, #c99a3d); }
+.pin-sub { margin: 0 0 12px; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+.pin ul { list-style: none; margin: 0; padding: 0; }
+.pq { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); }
+.pq-check { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line-2); background: transparent; color: var(--bg); font-size: 15px; line-height: 1; display: grid; place-items: center; cursor: pointer; transition: all 0.4s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.pq-check:hover { border-color: var(--ink); transform: scale(1.1); }
+.pq.done .pq-check { background: var(--ink); border-color: var(--ink); }
+:root[data-theme='rose'] .pq.done .pq-check { background: linear-gradient(115deg, #a97a22, #e9cb7e, #c99a3d); border-color: #c99a3d; color: #3a2028; }
+.pq-main { flex: 1; min-width: 0; }
+.pq-name { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pq.done .pq-name { text-decoration: line-through; opacity: 0.5; }
+.pq small { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.pq.late small { color: var(--bad); }
+.pq-step { flex: none; height: 26px; padding: 0 10px; border-radius: 99px; border: 1px solid var(--line-2); background: transparent; color: var(--ink); font-family: var(--mono); font-size: 0.68rem; cursor: pointer; }
+.pq-step:hover { border-color: var(--ink); }
+.pin h4 { margin: 22px 0 8px; font-family: var(--mono); font-weight: 450; font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-3); }
+.pn { position: relative; margin-bottom: 8px; padding: 10px 28px 10px 12px; border-radius: 12px; background: hsl(var(--n) 40% 62% / 0.14); border-left: 2px solid hsl(var(--n) 45% 66%); }
+:root[data-theme='rose'] .pn { background: hsl(var(--n) 55% 80% / 0.55); }
+.pn-text { display: block; font-family: var(--serif); font-size: 1.1rem; line-height: 1.25; outline: none; white-space: pre-wrap; word-break: break-word; min-height: 1.2em; }
+.pn-x { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; border: 0; border-radius: 50%; background: transparent; color: var(--ink-3); cursor: pointer; font-size: 15px; line-height: 1; }
+.pn-x:hover { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+.pin-add { display: flex; gap: 8px; margin-top: 12px; }
+.pin-add input { flex: 1; min-width: 0; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--field); color: var(--ink); font: inherit; outline: none; }
+.pin-add input:focus { border-color: var(--ink); }
+.pin-add button { height: 36px; padding: 0 14px; border-radius: 10px; border: 0; background: var(--ink); color: var(--bg); font: inherit; font-weight: 500; cursor: pointer; }
+.empty { padding: 12px 0; color: var(--ink-3); font-size: 0.82rem; }
+.pin-banner { margin: 0 0 12px; padding: 9px 12px; border-radius: 10px; font-size: 0.78rem; color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); }

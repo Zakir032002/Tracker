@@ -1,0 +1,206 @@
+/* ==========================================================================
+   Ascend: Rosé Aurum theme
+   Soft blush, rosewood ink, champagne gold. Polished, never loud.
+   Loaded last so it can override the shared components.
+   ========================================================================== */
+
+:root[data-theme='rose'] {
+  color-scheme: light;
+  --bg: #f8e8e6;
+  --bg-2: #f1d7d6;
+  --ink: #3a2028;
+  --ink-2: rgba(58, 32, 40, 0.7);
+  --ink-3: rgba(58, 32, 40, 0.46);
+  --line: rgba(150, 80, 95, 0.15);
+  --line-2: rgba(150, 80, 95, 0.28);
+  --panel: rgba(255, 247, 244, 0.64);
+  --panel-solid: #fff5f2;
+  --field: rgba(150, 80, 95, 0.05);
+  --hair-hi: rgba(255, 255, 255, 0.92);
+  --shadow: 0 30px 70px -34px rgba(176, 84, 108, 0.5);
+  --heat-0: rgba(150, 80, 95, 0.09);
+  --heat-rest: rgba(150, 80, 95, 0.04);
+
+  --accent: hsl(343 52% 56%);
+  --accent-2: hsl(345 50% 44%);
+  --accent-soft: hsl(343 52% 56% / 0.13);
+  --accent-ink: #fff8f4;
+  --gold: #b78a2c;
+  --gold-light: #f0d58a;
+  --gold-grad: linear-gradient(115deg, #a97a22 0%, #e9cb7e 26%, #c99a3d 46%, #f6e4ae 66%, #b98a2e 100%);
+  --good: hsl(150 30% 34%);
+  --bad: hsl(5 58% 47%);
+  --ice: hsl(205 40% 40%);
+}
+
+@keyframes shimmer { to { background-position: -220% 0; } }
+@keyframes twinkle { 0%, 100% { transform: scale(0.35) rotate(0deg); opacity: 0.25; } 50% { transform: scale(1) rotate(45deg); opacity: 1; } }
+@keyframes sweep { 0%, 62% { left: -60%; } 100% { left: 140%; } }
+
+/* ---------- gold headline accents with a slow shimmer ---------- */
+:root[data-theme='rose'] em {
+  background: var(--gold-grad);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 8s linear infinite;
+  padding-right: 0.05em;
+}
+:root[data-theme='rose'] .hero h1 em,
+:root[data-theme='rose'] .page-head h1 em,
+:root[data-theme='rose'] .sanct-hero h1 em { position: relative; }
+:root[data-theme='rose'] .hero h1 em::after,
+:root[data-theme='rose'] .page-head h1 em::after {
+  content: '';
+  position: absolute;
+  right: -0.32em;
+  top: 0.02em;
+  width: 0.34em;
+  height: 0.34em;
+  background: #efcb74;
+  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
+  animation: twinkle 3.2s ease-in-out infinite;
+}
+:root[data-theme='rose'] .brand { color: var(--ink); }
+:root[data-theme='rose'] .brand .mark::before,
+:root[data-theme='rose'] .brand .mark::after { border-color: #b98a2e; }
+:root[data-theme='rose'] .pl-word span {
+  background: var(--gold-grad);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  padding-right: 0.08em;
+  animation: shimmer 5s linear infinite;
+}
+:root[data-theme='rose'] .pl-bar i { background: var(--gold-grad); }
+
+/* words wrapped for the reveal animation carry the gradient themselves */
+:root[data-theme='rose'] em[data-split-em] { background: none; animation: none; color: inherit; -webkit-text-fill-color: initial; }
+:root[data-theme='rose'] em[data-split-em] .wi {
+  background: var(--gold-grad);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 8s linear infinite;
+  padding-right: 0.05em;
+}
+
+/* ---------- navigation ---------- */
+:root[data-theme='rose'] .topnav { border-color: rgba(201, 154, 61, 0.3); background: rgba(255, 247, 244, 0.7); }
+:root[data-theme='rose'] .topnav .nav-pill,
+:root[data-theme='rose'] .dock .dock-pill { background: var(--gold-grad); background-size: 200% 100%; animation: shimmer 6s linear infinite; }
+:root[data-theme='rose'] .topnav a.active,
+:root[data-theme='rose'] .dock a.active { color: #3a2028; }
+:root[data-theme='rose'] .topnav a.active i { color: rgba(58, 32, 40, 0.55); }
+:root[data-theme='rose'] .topnav .badge,
+:root[data-theme='rose'] .dock .badge { background: var(--accent); color: #fff; }
+:root[data-theme='rose'] .avatar-btn .val { stroke: #c99a3d; }
+:root[data-theme='rose'] .avatar-btn .lv { background: var(--gold-grad); color: #3a2028; -webkit-text-fill-color: #3a2028; }
+:root[data-theme='rose'] .hud { background: linear-gradient(to bottom, rgba(248, 232, 230, 0.9), rgba(248, 232, 230, 0)); }
+
+/* ---------- panels: pearl glass with a gold hairline ---------- */
+:root[data-theme='rose'] .glass,
+:root[data-theme='rose'] .panel {
+  border-color: rgba(201, 154, 61, 0.26);
+  box-shadow: inset 0 1px 0 var(--hair-hi), inset 0 0 40px rgba(255, 255, 255, 0.25), var(--shadow);
+}
+:root[data-theme='rose'] .glass::before {
+  content: '';
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  top: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #e6c36e, transparent);
+  opacity: 0.85;
+  pointer-events: none;
+}
+:root[data-theme='rose'] .glass::after { background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 0%), rgba(255, 230, 190, 0.45), transparent 62%); }
+:root[data-theme='rose'] .modal { background: color-mix(in srgb, var(--panel-solid) 94%, transparent); }
+:root[data-theme='rose'] .modal-scrim { background: rgba(120, 55, 75, 0.28); }
+:root[data-theme='rose'] .card-head h3,
+:root[data-theme='rose'] .section-head h2 { color: var(--ink); }
+
+/* ---------- buttons: rosewood with a gold wipe and a passing glint ---------- */
+:root[data-theme='rose'] .btn.primary { background: var(--ink); color: #fff3ee; }
+:root[data-theme='rose'] .btn.primary::before { background: var(--gold-grad); }
+:root[data-theme='rose'] .btn.primary:hover { color: #3a2028; }
+:root[data-theme='rose'] .btn.primary::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 36%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  transform: skewX(-20deg);
+  animation: sweep 5s ease-in-out infinite;
+}
+:root[data-theme='rose'] .btn.soft:hover,
+:root[data-theme='rose'] .btn.ghost:hover { border-color: #c99a3d; }
+:root[data-theme='rose'] .seg-btn.on,
+:root[data-theme='rose'] .day.on,
+:root[data-theme='rose'] .tone.on,
+:root[data-theme='rose'] .band.on,
+:root[data-theme='rose'] .timer-chips button.on { background: var(--ink); color: #fff3ee; border-color: var(--ink); }
+:root[data-theme='rose'] .emo.on,
+:root[data-theme='rose'] .preset.on { border-color: #c99a3d; background: rgba(233, 203, 126, 0.2); }
+:root[data-theme='rose'] .switch.on { background: var(--gold-grad); border-color: #c99a3d; }
+:root[data-theme='rose'] .switch.on i { background: #fff; }
+:root[data-theme='rose'] input[type='range'] { background: linear-gradient(90deg, #c99a3d var(--pct, 50%), var(--line-2) var(--pct, 50%)); }
+:root[data-theme='rose'] input[type='range']::-webkit-slider-thumb { background: #fff; border-color: #fff; box-shadow: 0 0 0 1px #c99a3d, 0 2px 8px rgba(176, 84, 108, 0.35); }
+
+/* ---------- quests, week, streak ---------- */
+:root[data-theme='rose'] .check::before { background: var(--gold-grad); }
+:root[data-theme='rose'] .quest.done .check { color: #3a2028; border-color: #c99a3d; }
+:root[data-theme='rose'] .check:hover { border-color: #c99a3d; }
+:root[data-theme='rose'] .wd.kept i { background: var(--gold-grad); border-color: transparent; color: #3a2028; }
+:root[data-theme='rose'] .wd.is-today i { box-shadow: 0 0 0 3px var(--bg), 0 0 0 4px #c99a3d; }
+:root[data-theme='rose'] .q-prog i,
+:root[data-theme='rose'] .xp-bar i,
+:root[data-theme='rose'] .tr-bar i { background: var(--gold-grad); }
+:root[data-theme='rose'] .boss-hp i { background: linear-gradient(90deg, #d98aa0, #c0485f); }
+:root[data-theme='rose'] .chest-card.ready { border-color: #c99a3d; }
+:root[data-theme='rose'] .chest-card.ready .chest { border-color: #c99a3d; background: rgba(233, 203, 126, 0.25); }
+:root[data-theme='rose'] .hs-avatar em { background: var(--gold-grad); color: #3a2028; -webkit-text-fill-color: #3a2028; }
+:root[data-theme='rose'] .cell.l4,
+:root[data-theme='rose'] .mcell.l4 { background: linear-gradient(135deg, #f6e4ae, #c99a3d); }
+:root[data-theme='rose'] .mcell.l4 { color: #3a2028; }
+:root[data-theme='rose'] .cell.l1, :root[data-theme='rose'] .mcell.l1 { background: hsl(343 52% 62% / 0.3); }
+:root[data-theme='rose'] .cell.l2, :root[data-theme='rose'] .mcell.l2 { background: hsl(343 52% 60% / 0.55); }
+:root[data-theme='rose'] .cell.l3, :root[data-theme='rose'] .mcell.l3 { background: hsl(343 54% 56% / 0.85); }
+:root[data-theme='rose'] .trophy.got { border-color: rgba(201, 154, 61, 0.5); }
+:root[data-theme='rose'] .tile.fire b { color: var(--accent); }
+:root[data-theme='rose'] .tile.gold b { color: var(--gold); }
+
+/* ---------- route curtain + toasts ---------- */
+:root[data-theme='rose'] #curtain i { background: linear-gradient(180deg, #f9dedb, #efc4bd); box-shadow: inset 0 0 0 1px rgba(201, 154, 61, 0.4); }
+:root[data-theme='rose'] .toast { background: color-mix(in srgb, #fff5f2 92%, transparent); }
+:root[data-theme='rose'] .toast.ach { border-color: #c99a3d; }
+:root[data-theme='rose'] .float-text.xp { color: #a9742a; }
+:root[data-theme='rose'] .float-text { text-shadow: 0 1px 8px rgba(255, 255, 255, 0.9); }
+:root[data-theme='rose'] .tip { background: var(--ink); color: #fff3ee; }
+:root[data-theme='rose'] .sky-tip { background: var(--ink); color: #fff3ee; }
+
+/* ---------- lift cards in 3D on hover ---------- */
+:root[data-theme='rose'] .panels .card,
+:root[data-theme='rose'] .shop-item,
+:root[data-theme='rose'] .quest-card,
+:root[data-theme='rose'] .alarm-card,
+:root[data-theme='rose'] .trophy { transform-style: preserve-3d; will-change: transform; }
+
+/* ---------- celebration modals ---------- */
+:root[data-theme='rose'] .lu-badge { background: radial-gradient(circle at 35% 30%, #fff3d8, #f3d9a0 55%, #d5a94e); box-shadow: inset 0 1px 0 #fff, 0 0 90px -10px #e6b95a; }
+:root[data-theme='rose'] .lu-badge span { background: none; color: #3a2028; }
+:root[data-theme='rose'] .lu-burst { background: repeating-conic-gradient(from 0deg, rgba(233, 203, 126, 0.35) 0 6deg, transparent 6deg 18deg); }
+:root[data-theme='rose'] .rank-line { color: var(--gold); }
+
+/* ---------- ring screen ---------- */
+:root[data-theme='rose'] .ring-screen { background: radial-gradient(circle at 50% 45%, rgba(255, 226, 214, 0.94), rgba(241, 196, 196, 0.97) 72%); }
+:root[data-theme='rose'] .ring-screen.strict { background: radial-gradient(circle at 50% 45%, rgba(255, 205, 200, 0.95), rgba(226, 150, 160, 0.98) 72%); }
+:root[data-theme='rose'] .rs-pulses i { border-color: rgba(201, 154, 61, 0.6); }
+:root[data-theme='rose'] .rs-card { background: color-mix(in srgb, #fff5f2 90%, transparent); }

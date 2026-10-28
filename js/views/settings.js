@@ -38,8 +38,8 @@
 
         <section class="card glass">
           <div class="card-head"><h3>Appearance</h3></div>
-          <div class="field"><span>Theme</span><div class="seg compact">${['dark', 'light', 'auto'].map((t) => `<button class="seg-btn ${s.theme === t ? 'on' : ''}" data-act="setTheme" data-v="${t}" data-quiet>${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div></div>
-          <div class="field"><span>Accent</span><div class="swatches">${A.ui.ACCENTS.map((a) => `<button class="sw ${s.accent === a.h ? 'on' : ''}" data-act="setAccent" data-h="${a.h}" style="--c:${a.h}" data-quiet aria-label="${a.name}" title="${a.name}"></button>`).join('')}</div></div>
+          <div class="field"><span>Theme</span><div class="seg compact">${[...A.THEMES.map((t) => [t.id, t.name]), ['auto', 'Auto']].map(([k, l]) => `<button class="seg-btn ${s.theme === k ? 'on' : ''}" data-act="setTheme" data-v="${k}" data-quiet>${l}</button>`).join('')}</div></div>
+          <div class="field"><span>Accent ${A.resolvedTheme() === 'rose' ? '<small class="muted">· Rosé Aurum keeps its signature rose-gold</small>' : ''}</span><div class="swatches" ${A.resolvedTheme() === 'rose' ? 'style="opacity:.35;pointer-events:none"' : ''}>${A.ui.ACCENTS.map((a) => `<button class="sw ${s.accent === a.h ? 'on' : ''}" data-act="setAccent" data-h="${a.h}" style="--c:${a.h}" data-quiet aria-label="${a.name}" title="${a.name}"></button>`).join('')}</div></div>
           <div class="field"><span>3D graphics</span><div class="seg compact">${[['high', 'High'], ['low', 'Battery saver'], ['off', 'Off']].map(([k, l]) => `<button class="seg-btn ${s.quality === k ? 'on' : ''}" data-act="setQuality" data-v="${k}" data-quiet>${l}</button>`).join('')}</div></div>
           ${toggle('cursor', 'Custom cursor', 'A smooth follower on desktop. Reload to apply.')}
           ${toggle('confetti', 'Confetti & effects')}
@@ -63,6 +63,12 @@
           <div class="set-row"><div class="grow"><b>Streak threshold</b><p class="muted small">A day keeps your streak when you finish at least <b id="thr-val">${s.streakThreshold}%</b> of its quests.</p></div>
             <input type="range" min="10" max="100" step="10" value="${s.streakThreshold}" style="--pct:${((s.streakThreshold - 10) / 90) * 100}%" data-set="settings.streakThreshold" data-num="1" data-live="thr-val" data-suffix="%" aria-label="Streak threshold"></div>
           <div class="set-row"><div class="grow"><b>Week starts on</b></div><div class="seg compact">${[1, 0, 6].map((d) => `<button class="seg-btn ${s.weekStart === d ? 'on' : ''}" data-act="setWeek" data-d="${d}" data-quiet>${A.DAYS[d]}</button>`).join('')}</div></div>
+        </section>
+
+        <section class="card glass wide">
+          <div class="card-head"><h3>Stick to your screen</h3></div>
+          <p class="muted small">Quests and sticky notes can stay beside you while you browse. <b>Pin to screen</b> opens a small always-on-top window. For a panel docked to the side of Chrome itself, load the <code>extension/</code> folder (chrome://extensions → Developer mode → Load unpacked) — it stays in sync with this page.</p>
+          <div class="row gap sm-top"><button class="btn soft sm" data-act="pinOpen"><span>📌 Pin to screen</span></button></div>
         </section>
 
         <section class="card glass wide">
@@ -134,11 +140,9 @@
     A.save();
     A.navigate(true);
   };
-  A.actions.setTheme = (el) => {
-    A.S.settings.theme = el.dataset.v;
-    A.applyTheme();
-    A.save();
-    A.navigate(true);
+  A.actions.setTheme = (el, e) => {
+    A.setTheme(el.dataset.v, e);
+    setTimeout(() => A.view === 'settings' && A.navigate(true), 1500);
   };
   A.actions.setQuality = (el) => {
     A.S.settings.quality = el.dataset.v;

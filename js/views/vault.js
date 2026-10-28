@@ -5,21 +5,40 @@
   const { esc, icon, G } = { esc: A.esc, icon: A.icon, G: A.G };
   let tab = 'shop';
 
+  /* the journey from Seedling to Mythic */
+  function ascentPath() {
+    const li = G.levelInfo();
+    const ranks = G.RANKS;
+    const next = ranks.find((r) => r.min > li.level);
+    const nodes = ranks
+      .map((r, i) => {
+        const passed = li.level >= r.min && (!ranks[i + 1] || li.level < ranks[i + 1].min ? 'now' : 'done');
+        const cls = li.level >= r.min ? (passed === 'now' ? 'now' : 'done') : '';
+        return `<li class="${cls}"><i></i><b>${esc(r.name)}</b><small>Lv ${r.min}</small></li>`;
+      })
+      .join('');
+    const toNext = next ? G.xpForLevel(next.min) - li.xp : 0;
+    return `<div class="ascent"><ol>${nodes}</ol>
+      <p class="muted small">${next ? `Next rank: <b>${esc(next.name)}</b> at level ${next.min} · ${A.fmtNum(toNext)} XP to go` : 'You have reached the summit. Mythic.'}</p></div>`;
+  }
+
   function hero() {
     const li = G.levelInfo();
     const P = A.S.player;
     const sk = G.streak();
     return `<section class="card glass hero-sheet" style="--rank:${li.rank.hue}">
-      <div class="hs-avatar"><span>${esc(A.S.profile.avatar)}</span><em>${li.level}</em></div>
-      <div class="grow"><p class="eyebrow">${esc(li.rank.name)}</p><h2>${esc(A.S.profile.name)}</h2>
+      <div class="medal-slot" data-core-slot aria-hidden="true"></div>
+      <div class="hs-main"><p class="eyebrow">${esc(li.rank.name)}</p><h2>${esc(A.S.profile.name)} <span class="hs-av">${esc(A.S.profile.avatar)}</span></h2>
         <div class="xp-bar"><i style="width:${Math.round(li.pct * 100)}%"></i></div>
-        <p class="muted small">${A.fmtNum(li.into)} / ${A.fmtNum(li.need)} XP to level ${li.level + 1}</p></div>
-      <div class="hs-stats">
-        <div><b>${A.fmtNum(P.totalXpEver)}</b><span>XP earned</span></div>
-        <div><b>${P.bossesDefeated}</b><span>bosses slain</span></div>
-        <div><b>${P.deaths}</b><span>defeats</span></div>
-        <div><b>${Object.keys(A.S.achievements).length}/${G.ACH.length}</b><span>trophies</span></div>
+        <p class="muted small">${A.fmtNum(li.into)} / ${A.fmtNum(li.need)} XP to level ${li.level + 1}</p>
+        <div class="hs-stats">
+          <div><b>${A.fmtNum(P.totalXpEver)}</b><span>XP earned</span></div>
+          <div><b>${P.bossesDefeated}</b><span>bosses slain</span></div>
+          <div><b>${P.deaths}</b><span>defeats</span></div>
+          <div><b>${Object.keys(A.S.achievements).length}/${G.ACH.length}</b><span>trophies</span></div>
+        </div>
       </div>
+      ${ascentPath()}
       <div class="hs-heat"><div class="hs-heat-head"><span>${icon('flame', 14)} <b>${sk.current}</b> day streak</span><span class="muted">longest ${sk.longest} · past year</span></div>
         <div class="heat-scroll tight">${A.miniHeat(52, 14)}</div></div></section>`;
   }
@@ -73,6 +92,7 @@
 
   A.views.vault = {
     title: 'Vault',
+    mode: 'medal',
     render(root) {
       root.innerHTML = `
       <div class="page-head"><p class="eyebrow">Spend &amp; show off</p><h1>The <em>vault</em></h1></div>

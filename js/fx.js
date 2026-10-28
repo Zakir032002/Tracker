@@ -22,6 +22,9 @@
   let parts = [];
   let raf = 0;
   const PALETTE = ['#efe9df', '#d9955f', '#e6c27a', '#a9c4ae', '#9db8cc', '#c97b6b', '#f6efe4'];
+  const ROSE = ['#e9c46a', '#f3d98e', '#d98aa0', '#f4bccb', '#c99a3d', '#fff3d8', '#e6b0a0'];
+  const palette = () => (document.documentElement.dataset.theme === 'rose' ? ROSE : PALETTE);
+  const isRose = () => document.documentElement.dataset.theme === 'rose';
 
   function tick() {
     c2.clearRect(0, 0, W, H);
@@ -38,7 +41,17 @@
       c2.translate(p.x, p.y);
       c2.rotate(p.rot);
       c2.fillStyle = p.color;
-      if (p.shape === 0) c2.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2);
+      if (p.shape === 3) {
+        // four-point sparkle
+        const r = p.s * 0.7;
+        c2.beginPath();
+        c2.moveTo(0, -r);
+        c2.quadraticCurveTo(0, 0, r, 0);
+        c2.quadraticCurveTo(0, 0, 0, r);
+        c2.quadraticCurveTo(0, 0, -r, 0);
+        c2.quadraticCurveTo(0, 0, 0, -r);
+        c2.fill();
+      } else if (p.shape === 0) c2.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2);
       else if (p.shape === 1) {
         c2.beginPath();
         c2.arc(0, 0, p.s / 3, 0, 6.3);
@@ -61,7 +74,8 @@
 
   const fx = (A.fx = {});
 
-  fx.confetti = ({ x = innerWidth / 2, y = innerHeight / 3, count = 90, power = 11, spread = Math.PI * 2, angle = -Math.PI / 2, colors = PALETTE } = {}) => {
+  fx.confetti = ({ x = innerWidth / 2, y = innerHeight / 3, count = 90, power = 11, spread = Math.PI * 2, angle = -Math.PI / 2, colors } = {}) => {
+    colors = colors || palette();
     if (!A.S.settings.confetti || reduced()) return;
     for (let i = 0; i < count; i++) {
       const a = angle + (Math.random() - 0.5) * spread;
@@ -77,11 +91,29 @@
         vr: (Math.random() - 0.5) * 0.35,
         life: 90 + Math.random() * 70,
         color: colors[(Math.random() * colors.length) | 0],
-        shape: (Math.random() * 3) | 0,
+        shape: isRose() && Math.random() < 0.55 ? 3 : (Math.random() * 3) | 0,
       });
     }
     if (!raf) raf = requestAnimationFrame(tick);
   };
+
+  /* tiny gold sparkles that follow the pointer (rose theme) */
+  let lastTrail = 0;
+  fx.trail = (x, y) => {
+    const now = performance.now();
+    if (now - lastTrail < 38 || reduced()) return;
+    lastTrail = now;
+    for (let i = 0; i < 2; i++) {
+      parts.push({
+        x: (x + (Math.random() - 0.5) * 10) * dpr, y: (y + (Math.random() - 0.5) * 10) * dpr,
+        vx: (Math.random() - 0.5) * 0.9 * dpr, vy: (Math.random() * 0.6 + 0.1) * dpr, g: 0.012 * dpr,
+        s: (3 + Math.random() * 4) * dpr, rot: Math.random() * 6.3, vr: (Math.random() - 0.5) * 0.2,
+        life: 28 + Math.random() * 22, color: ROSE[(Math.random() * ROSE.length) | 0], shape: 3,
+      });
+    }
+    if (!raf) raf = requestAnimationFrame(tick);
+  };
+  fx.sparkleBurst = (x, y) => fx.confetti({ x, y, count: 60, power: 9, spread: Math.PI * 2, colors: ROSE });
 
   fx.rain = (ms = 2200) => {
     const t0 = performance.now();

@@ -144,6 +144,38 @@
       <ul class="feed">${f.map((e) => `<li class="f-${e.type}"><span class="grow">${esc(e.text)}</span>${label(e)}<small>${A.ago(e.t)}</small></li>`).join('')}</ul></section>`;
   }
 
+  const QUOTES = [
+    ['We are what we repeatedly do. Excellence, then, is not an act but a habit.', 'Will Durant'],
+    ['You do not rise to the level of your goals. You fall to the level of your systems.', 'James Clear'],
+    ['The secret of getting ahead is getting started.', 'Mark Twain'],
+    ['Small disciplines repeated with consistency every day lead to great achievements.', 'John C. Maxwell'],
+    ['It does not matter how slowly you go as long as you do not stop.', 'Confucius'],
+    ['Motivation gets you going. Habit keeps you growing.', 'Jim Ryun'],
+    ['First forget inspiration. Habit is more dependable.', 'Octavia Butler'],
+    ['The chains of habit are too light to be felt until they are too heavy to be broken.', 'Warren Buffett'],
+    ['Quality is not an act, it is a habit.', 'Aristotle'],
+    ['Do what you can, with what you have, where you are.', 'Theodore Roosevelt'],
+    ['Well begun is half done.', 'Aristotle'],
+    ['The best time to plant a tree was twenty years ago. The second best time is now.', 'Proverb'],
+    ['What you do every day matters more than what you do once in a while.', 'Gretchen Rubin'],
+    ['A year from now you may wish you had started today.', 'Karen Lamb'],
+    ['Discipline is choosing between what you want now and what you want most.', 'Abraham Lincoln'],
+    ['Action is the foundational key to all success.', 'Pablo Picasso'],
+    ['Success is the sum of small efforts, repeated day in and day out.', 'Robert Collier'],
+    ['Begin anywhere.', 'John Cage'],
+    ['Energy and persistence conquer all things.', 'Benjamin Franklin'],
+    ['The way to get started is to quit talking and begin doing.', 'Walt Disney'],
+  ];
+  function intention() {
+    const d = A.today();
+    const mine = A.S.intent && A.S.intent.date === d ? A.S.intent.text : '';
+    const q = QUOTES[Math.abs([...d].reduce((a, c) => a * 31 + c.charCodeAt(0), 7)) % QUOTES.length];
+    return `<section class="card glass intention"><p class="eyebrow">${mine ? 'Your intention for today' : 'Thought for today'}</p>
+      <blockquote>${mine ? esc(mine) : '“' + esc(q[0]) + '”'}</blockquote>
+      ${mine ? '' : `<cite>${esc(q[1])}</cite>`}
+      <div class="row gap"><button class="link" data-act="setIntent" data-quiet>${mine ? 'Change it' : 'Write my own intention'}</button>${mine ? '<button class="link" data-act="clearIntent" data-quiet>Back to the quote</button>' : ''}</div></section>`;
+  }
+
   function mood(info, remaining, sk) {
     const P = A.S.player;
     if (!G.activeHabits().length) return 'Add your first quest to begin the climb.';
@@ -193,7 +225,7 @@
         </section>
 
         <section class="stream">
-          <div class="section-head first"><h2>Today’s <em>quests</em></h2><button class="btn soft sm" data-act="newQuest"><span>${icon('plus', 15)} New quest</span></button></div>
+          <div class="section-head first"><h2>Today’s <em>quests</em></h2><div class="row gap"><button class="btn ghost sm" data-act="pinOpen" title="Open a small always-on-top window with today's quests"><span>📌 Pin to screen</span></button><button class="btn soft sm" data-act="newQuest"><span>${icon('plus', 15)} New quest</span></button></div></div>
           ${
             sorted.length
               ? `<div class="quest-list">${sorted.map(questRow).join('')}</div>`
@@ -201,6 +233,7 @@
           }
           ${extra.length ? `<p class="muted small rest-note">${extra.length} other quest${extra.length > 1 ? 's are' : ' is'} resting today.</p>` : ''}
           <div class="panels">
+            ${intention()}
             ${bossCard()}
             ${chestCard(info)}
             ${consistency(sk)}
@@ -213,6 +246,27 @@
     },
   };
 
+  A.actions.setIntent = () => {
+    const m = A.ui.modal({
+      cls: 'modal-sm',
+      html: `<p class="eyebrow">Today's intention</p><h3>What matters most today?</h3>
+        <label class="field"><textarea id="int-text" class="input" style="height:110px;padding:14px;resize:none" maxlength="140" placeholder="Today I will…"></textarea></label>
+        <div class="row end gap"><button class="btn ghost" data-close><span>Cancel</span></button><button class="btn primary" id="int-save"><span>Set intention</span></button></div>`,
+    });
+    const ta = m.el.querySelector('#int-text');
+    ta.value = A.S.intent && A.S.intent.date === A.today() ? A.S.intent.text : '';
+    setTimeout(() => ta.focus(), 500);
+    m.el.querySelector('#int-save').addEventListener('click', () => {
+      const t = ta.value.trim();
+      A.S.intent = t ? { date: A.today(), text: t } : null;
+      A.save();
+      m.close();
+    });
+  };
+  A.actions.clearIntent = () => {
+    A.S.intent = null;
+    A.save();
+  };
   A.actions.toggle = (el) => G.toggle(el.dataset.id);
   A.actions.inc = (el) => G.inc(el.dataset.id, 1);
   A.actions.dec = (el) => G.inc(el.dataset.id, -1);

@@ -99,7 +99,7 @@
     const edit = !!habit;
     const f = edit
       ? { ...habit, days: habit.days.slice() }
-      : { name: '', icon: '✨', hue: A.ui.HUES[A.S.habits.length % A.ui.HUES.length], diff: 'medium', days: [0, 1, 2, 3, 4, 5, 6], target: 1, unit: '', reminder: '' };
+      : { name: '', icon: '✨', hue: A.ui.HUES[A.S.habits.length % A.ui.HUES.length], diff: 'medium', days: [0, 1, 2, 3, 4, 5, 6], target: 1, unit: '', reminder: '', sticky: true };
     const dayBtns = () =>
       [1, 2, 3, 4, 5, 6, 0].map((d) => `<button type="button" class="day ${f.days.includes(d) ? 'on' : ''}" data-d="${d}">${A.DAYS[d].slice(0, 3)}</button>`).join('');
     const diffBtns = () =>
@@ -124,6 +124,8 @@
           <label class="field grow"><span>Unit <small class="muted">(optional)</small></span><input id="ed-unit" class="input" maxlength="12" placeholder="glasses, pages…" value="${esc(f.unit)}"></label>
           <label class="field grow"><span>Reminder alarm</span><input id="ed-rem" type="time" class="input" value="${esc(f.reminder)}"></label>
         </div>
+        <div class="field stick-row"><div><span>Keep it on my screen</span><small class="muted">Shows in the Chrome side panel and the pinned window until it's done or removed.</small></div>
+          <button type="button" class="switch ${f.sticky !== false ? 'on' : ''}" id="ed-sticky" role="switch" aria-checked="${f.sticky !== false}" aria-label="Keep on my screen"><i></i></button></div>
         <div class="row between gap sticky-actions">
           ${edit ? `<button type="button" class="btn ghost danger-t" id="ed-del">${icon('trash', 16)} Delete</button>` : '<span></span>'}
           <div class="row gap"><button class="btn ghost" data-close>Cancel</button><button class="btn primary" id="ed-save">${edit ? 'Save changes' : 'Create quest'}</button></div>
@@ -180,6 +182,13 @@
         $('#ed-target').textContent = f.target;
         return A.sfx('click');
       }
+      const st = t.closest('#ed-sticky');
+      if (st) {
+        f.sticky = f.sticky === false;
+        st.classList.toggle('on', f.sticky);
+        st.setAttribute('aria-checked', f.sticky);
+        return A.sfx('click');
+      }
       if (t.closest('#ed-del')) {
         const ok = await A.ui.confirm({ title: `Delete “${habit.name}”?`, text: 'This cannot be undone.', ok: 'Delete', danger: true });
         if (ok) {
@@ -200,7 +209,7 @@
           A.sfx('error');
           return A.ui.toast('Pick at least one day', { icon: '📅', kind: 'warn' });
         }
-        const data = { name, icon: f.icon, hue: f.hue, diff: f.diff, days: f.days, target: f.target, unit: $('#ed-unit').value.trim(), reminder: $('#ed-rem').value };
+        const data = { name, icon: f.icon, hue: f.hue, diff: f.diff, days: f.days, target: f.target, unit: $('#ed-unit').value.trim(), reminder: $('#ed-rem').value, sticky: f.sticky !== false };
         if (edit) G.updateHabit(habit.id, data);
         else {
           G.addHabit(data);

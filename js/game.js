@@ -472,6 +472,7 @@
       target: Math.max(1, data.target || 1),
       unit: data.unit || '',
       reminder: data.reminder || '',
+      sticky: data.sticky !== false,
       createdAt: A.today(),
       createdTs: Date.now(),
       archived: false,

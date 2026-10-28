@@ -1,6 +1,6 @@
 /* Ascend: WebGL scene manager.
    One fixed canvas behind the whole app. The UI drives it through window.A3D:
-     A3D.mode('core' | 'skyline' | 'sanctuary', { cx, cy, zoom })
+     A3D.mode('core' | 'skyline' | 'sanctuary' | 'medal', { cx, cy, zoom })
      A3D.set({ progress, hp, dead, quests, week, hue, theme })
      A3D.pulse('complete' | 'crit' | 'level' | 'damage' | 'death' | 'perfect')
      A3D.skyline(days, cols, hue)  /  A3D.onHover(fn)
@@ -10,6 +10,8 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { createCore } from './core.js';
 import { createSkyline } from './skyline.js';
 import { createSanctuary } from './sanctuary.js';
+import { createMedal } from './medal.js';
+import { createRoseFx } from './rosefx.js';
 import { damp, clamp, hsl } from './util.js';
 
 const noop = () => {};
@@ -53,6 +55,7 @@ function boot() {
     uFlash: { value: 0 },
     uNight: { value: 0 },
     uAspect: { value: 1 },
+    uCS: { value: 0 }, // 1 = convert to display colour space (rose theme)
   };
   const sky = new THREE.Mesh(
     new THREE.SphereGeometry(100, 32, 16),
@@ -64,7 +67,7 @@ function boot() {
       vertexShader: 'varying vec3 vD; varying vec2 vS; void main(){ vD = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.); vS = p.xy / p.w; gl_Position = p; }',
       fragmentShader: /* glsl */ `
         varying vec3 vD; varying vec2 vS;
-        uniform vec3 uTop, uBot, uGlow; uniform float uGlowAmt, uFlash, uNight, uAspect; uniform vec2 uGlowPos;
+        uniform vec3 uTop, uBot, uGlow; uniform float uGlowAmt, uFlash, uNight, uAspect, uCS; uniform vec2 uGlowPos;
         float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
         void main(){
           float y = clamp(vD.y * 0.5 + 0.5, 0.0, 1.0);
@@ -84,6 +87,7 @@ function boot() {
           col += star * uNight * smoothstep(0.32, 0.85, y) * 0.9;
           // fine dither so the dark gradient never bands
           col += (hash(vS * 997.0) - 0.5) / 255.0 * 2.0;
+          if (uCS > 0.5) col = linearToOutputTexel(vec4(col, 1.0)).rgb;
           gl_FragColor = vec4(col, 1.0);
         }`,
     })
@@ -151,12 +155,19 @@ function boot() {
   const sanct = createSanctuary();
   scene.add(sanct.root);
 
+  const medal = createMedal(envMap);
+  medal.root.visible = false;
+  scene.add(medal.root);
+
+  const rosefx = createRoseFx(envMap);
+  scene.add(rosefx.root);
+
   scene.add(new THREE.HemisphereLight(0xfff1de, 0x1a1410, 0.35));
   scene.fog = new THREE.Fog(0x070605, 12, 30);
 
   /* ---------- state ---------- */
-  const W = { core: 1, sky: 0, sanct: 0 }; // current weights
-  const T = { core: 1, sky: 0, sanct: 0 }; // target weights
+  const W = { core: 1, sky: 0, sanct: 0, medal: 0 }; // current weights
+  const T = { core: 1, sky: 0, sanct: 0, medal: 0 }; // target weights
   const view = { cx: 0.3, cy: 0.5, zoom: 1 };
   const tview = { cx: 0.3, cy: 0.5, zoom: 1 };
   let modeName = 'core';
@@ -174,27 +185,47 @@ function boot() {
   let qualityLevel = 'high';
 
   const accent = () => hsl(hue, 0.62, 0.62);
+  const PAL = {
+    dark: { top: '#1a1511', bot: '#070605', glow: 0.14 },
+    light: { top: '#efe9de', bot: '#d8d0c1', glow: 0.2 },
+    rose: { top: '#fcf0ee', bot: '#f4d2d4', glow: 0.3 },
+  };
+  const SANCT = { dark: { top: '#0b1219', bot: '#2a3946' }, rose: { top: '#e9a6b9', bot: '#f7d2ac' } };
+  const cTop = new THREE.Color();
+  const cBot = new THREE.Color();
+  const cTop2 = new THREE.Color();
+  const cBot2 = new THREE.Color();
+
   function applyPalette() {
-    const light = theme === 'light';
+    const rose = theme === 'rose';
+    const light = theme !== 'dark';
     const a = accent();
+    skyU.uCS.value = rose ? 1 : 0;
+    sanct.uniforms.uCS.value = rose ? 1 : 0;
+    core.setStyle(rose ? 'rose' : 'obsidian');
     core.setAccent(a);
-    skyU.uGlow.value.copy(a);
-    skyline.setTheme(light);
+    if (rose) skyU.uGlow.value.set('#f5d9a0');
+    else skyU.uGlow.value.copy(a);
+    skyline.setTheme(theme);
+    sanct.setPalette(rose ? 'rose' : 'dark');
+    medal.setInfo(null, theme);
     dustU.uColor.value.set(light ? '#7a6a55' : '#e8dcc8');
-    dustU.uOpacity.value = light ? 0.35 : 0.5;
-    renderer.toneMappingExposure = light ? 0.95 : 1.05;
+    dust.visible = qualityLevel !== 'low' && !rose;
+    renderer.toneMappingExposure = rose ? 0.98 : light ? 0.95 : 1.05;
   }
 
-  function lerpSky(dt) {
-    const light = theme === 'light';
+  function lerpSky() {
+    const P = PAL[theme] || PAL.dark;
+    const rose = theme === 'rose';
+    const S = rose ? SANCT.rose : SANCT.dark;
     const night = W.sanct;
-    const top = new THREE.Color(light ? '#efe9de' : '#1a1511').lerp(new THREE.Color('#0b1219'), night);
-    const bot = new THREE.Color(light ? '#d8d0c1' : '#070605').lerp(new THREE.Color('#2a3946'), night);
-    skyU.uTop.value.copy(top);
-    skyU.uBot.value.copy(bot);
-    scene.fog.color.copy(bot);
-    skyU.uGlowAmt.value = (light ? 0.2 : 0.14) * (1 - night) * (0.6 + core.S.energy * 0.5);
-    skyU.uNight.value = night;
+    cTop.set(P.top).lerp(cTop2.set(S.top), night);
+    cBot.set(P.bot).lerp(cBot2.set(S.bot), night);
+    skyU.uTop.value.copy(cTop);
+    skyU.uBot.value.copy(cBot);
+    scene.fog.color.copy(cBot);
+    skyU.uGlowAmt.value = P.glow * (1 - night * (rose ? 0.4 : 1)) * (0.6 + core.S.energy * 0.5);
+    skyU.uNight.value = rose ? 0 : night;
     skyU.uFlash.value = sanct.flash * W.sanct;
   }
 
@@ -205,6 +236,7 @@ function boot() {
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     skyU.uAspect.value = w / h;
+    rosefx.setScale(h);
     camera.updateProjectionMatrix();
   }
   window.addEventListener('resize', resize);
@@ -280,7 +312,7 @@ function boot() {
     }
 
     // weights + view smoothing
-    ['core', 'sky', 'sanct'].forEach((k) => (W[k] = damp(W[k], T[k], 3.2, dt)));
+    ['core', 'sky', 'sanct', 'medal'].forEach((k) => (W[k] = damp(W[k], T[k], 3.2, dt)));
     view.cx = damp(view.cx, tview.cx, 3, dt);
     view.cy = damp(view.cy, tview.cy, 3, dt);
     view.zoom = damp(view.zoom, tview.zoom, 3, dt);
@@ -297,14 +329,15 @@ function boot() {
     const cCore = { z: 9.2 / view.zoom, y: 0, ly: 0 };
     const cSky = { z: 7.6, y: 6.4, ly: 0.0 };
     const cSan = { z: 9, y: 1.7, ly: 1.45 };
-    const bw = W.core + W.sky + W.sanct || 1;
+    const cMed = { z: 6.4 / view.zoom, y: 0, ly: 0 };
+    const bw = W.core + W.sky + W.sanct + W.medal || 1;
     camBase.set(
       pointer.sx * 0.6 * par,
-      (cCore.y * W.core + cSky.y * W.sky + cSan.y * W.sanct) / bw + pointer.sy * 0.35 * par,
-      (cCore.z * W.core + cSky.z * W.sky + cSan.z * W.sanct) / bw + (1 - ie) * 6
+      (cCore.y * W.core + cSky.y * W.sky + cSan.y * W.sanct + cMed.y * W.medal) / bw + pointer.sy * 0.35 * par,
+      (cCore.z * W.core + cSky.z * W.sky + cSan.z * W.sanct + cMed.z * W.medal) / bw + (1 - ie) * 6
     );
     camera.position.copy(camBase);
-    const ly = (cCore.ly * W.core + cSky.ly * W.sky + cSan.ly * W.sanct) / bw;
+    const ly = (cCore.ly * W.core + cSky.ly * W.sky + cSan.ly * W.sanct + cMed.ly * W.medal) / bw;
     lookAt.set(0, ly, W.sanct > 0.5 ? -12 : 0);
     camera.lookAt(lookAt);
     // shift the whole projection so the world origin lands at (cx, cy) of the screen
@@ -322,6 +355,14 @@ function boot() {
       core.root.position.set(0, Math.sin(t * 0.6) * 0.06, 0);
       core.update(dt, t, { x: pointer.sx * par, y: pointer.sy * par });
     }
+    // medal
+    medal.root.visible = W.medal > 0.01;
+    if (medal.root.visible) {
+      medal.root.scale.setScalar(Math.max(0.0001, W.medal * ie));
+      medal.update(dt, t, { x: pointer.sx * par, y: pointer.sy * par });
+    }
+    // rose ambience
+    rosefx.update(dt, t, theme === 'rose' ? 1 - W.sanct * 0.25 : 0, { x: pointer.sx * par, y: pointer.sy * par });
     // skyline
     skyline.root.visible = W.sky > 0.01;
     if (skyline.root.visible) {
@@ -346,7 +387,7 @@ function boot() {
     dust.position.x = -pointer.sx * 0.4 * par;
     dust.position.y = -pointer.sy * 0.25 * par;
 
-    lerpSky(dt);
+    lerpSky();
     renderer.render(scene, camera);
   }
   requestAnimationFrame(loop);
@@ -360,6 +401,7 @@ function boot() {
       T.core = name === 'core' ? 1 : 0;
       T.sky = name === 'skyline' ? 1 : 0;
       T.sanct = name === 'sanctuary' ? 1 : 0;
+      T.medal = name === 'medal' ? 1 : 0;
       tview.cx = opts.cx ?? 0.5;
       tview.cy = opts.cy ?? 0.5;
       tview.zoom = opts.zoom ?? 1;
@@ -379,9 +421,13 @@ function boot() {
       if (s.week) core.setWeek(s.week);
       core.setState(s);
     },
-    pulse: (k) => core.pulse(k),
-    skyline(days, cols, h, isLight) {
-      skyline.setData(days, cols, h ?? hue, isLight ?? theme === 'light');
+    pulse: (k) => {
+      core.pulse(k);
+      if (k === 'level' || k === 'perfect') medal.pulse();
+    },
+    medal: (info) => medal.setInfo(info, theme),
+    skyline(days, cols, h, th) {
+      skyline.setData(days, cols, h ?? hue, th || theme);
     },
     interactive(on) {
       pointer.over = on;
@@ -402,12 +448,13 @@ function boot() {
         renderer.setSize(size.w, size.h, false);
         renderer.shadowMap.enabled = false;
         dust.visible = false;
+        rosefx.root.userData.low = true;
       } else {
         pr = maxPR;
         renderer.setPixelRatio(pr);
         renderer.setSize(size.w, size.h, false);
         renderer.shadowMap.enabled = true;
-        dust.visible = true;
+        dust.visible = theme !== 'rose';
       }
     },
     settle() {

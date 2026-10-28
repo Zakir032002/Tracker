@@ -40,6 +40,7 @@
       x = e.clientX;
       y = e.clientY;
       c.classList.remove('hide');
+      if (document.documentElement.dataset.theme === 'rose' && A.fx) A.fx.trail(x, y);
     }, { passive: true });
     document.addEventListener('pointerleave', () => c.classList.add('hide'));
     addEventListener('pointerdown', () => c.classList.add('down'));
@@ -75,7 +76,8 @@
 
     let tilt = null;
     document.addEventListener('pointermove', (e) => {
-      const t = e.target.closest && e.target.closest('[data-tilt]');
+      const rose = document.documentElement.dataset.theme === 'rose';
+      const t = e.target.closest && e.target.closest(rose ? '[data-tilt], .panels .card, .shop-item, .quest-card, .alarm-card, .trophy' : '[data-tilt]');
       if (tilt && tilt !== t) {
         gsap.to(tilt, { rotationX: 0, rotationY: 0, duration: 1.1, ease: 'elastic.out(1, 0.5)' });
         tilt = null;
@@ -109,7 +111,10 @@
             }
           });
           n.replaceWith(frag);
-        } else if (n.nodeType === 1 && n.tagName !== 'BR') walk(n);
+        } else if (n.nodeType === 1 && n.tagName !== 'BR') {
+          if (n.tagName === 'EM') n.setAttribute('data-split-em', '');
+          walk(n);
+        }
       });
     };
     walk(el);

@@ -10,10 +10,16 @@
   const M = () => A.motion;
 
   /* ---------- theme ---------- */
+  A.THEMES = [
+    { id: 'dark', name: 'Obsidian', bg: '#0a0908' },
+    { id: 'light', name: 'Bone', bg: '#ece6da' },
+    { id: 'rose', name: 'Rosé Aurum', bg: '#f8e8e6' },
+  ];
   A.resolvedTheme = () => {
     const t = A.S.settings.theme;
     return t === 'auto' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : t;
   };
+  A.accentHue = () => (A.resolvedTheme() === 'rose' ? 343 : A.S.settings.accent);
   A.applyTheme = () => {
     const s = A.S.settings;
     if (!s.v2) {
@@ -23,10 +29,45 @@
     const t = A.resolvedTheme();
     const root = document.documentElement;
     root.dataset.theme = t;
-    root.style.setProperty('--h', s.accent);
+    root.style.setProperty('--h', A.accentHue());
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = t === 'light' ? '#ece6da' : '#0a0908';
+    if (meta) meta.content = (A.THEMES.find((x) => x.id === t) || A.THEMES[0]).bg;
     sync3D();
+  };
+
+  A.setTheme = (id, ev) => {
+    if (A.S.settings.theme === id) return;
+    const from = A.resolvedTheme();
+    A.S.settings.theme = id;
+    const to = A.resolvedTheme();
+    const commit = () => {
+      A.applyTheme();
+      A.save();
+      A.rerender && A.rerender();
+    };
+    if (id === 'auto' || from === to || !window.gsap || matchMedia('(prefers-reduced-motion: reduce)').matches) return commit();
+    const x = ev && ev.clientX ? ev.clientX : innerWidth - 60;
+    const y = ev && ev.clientY ? ev.clientY : 40;
+    const wipe = document.createElement('div');
+    wipe.style.cssText = `position:fixed;inset:0;z-index:9990;pointer-events:none;background:${(A.THEMES.find((t) => t.id === to) || A.THEMES[0]).bg};clip-path:circle(0px at ${x}px ${y}px)`;
+    document.body.appendChild(wipe);
+    const r = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y)) + 20;
+    if (to === 'rose' && A.fx && A.fx.sparkleBurst) A.fx.sparkleBurst(x, y);
+    A.sfx && A.sfx(to === 'rose' ? 'check' : 'click');
+    gsap.to(wipe, {
+      clipPath: `circle(${r}px at ${x}px ${y}px)`,
+      duration: 0.7,
+      ease: 'power3.inOut',
+      onComplete: () => {
+        commit();
+        gsap.to(wipe, { opacity: 0, duration: 0.45, ease: 'power1.out', onComplete: () => wipe.remove() });
+      },
+    });
+  };
+  A.actions.cycleTheme = (el, e) => {
+    const ids = A.THEMES.map((t) => t.id);
+    const cur = A.resolvedTheme();
+    A.setTheme(ids[(ids.indexOf(cur) + 1) % ids.length], e);
   };
 
   /* ---------- modal system ---------- */
@@ -170,6 +211,7 @@
       <div class="stat streak ${sk.current ? 'lit' : ''}" title="Current streak">${icon('flame', 14)}<span class="lbl">Streak</span><b>${sk.current}</b></div>
       ${P.freezes ? `<div class="stat" title="Streak Freezes">${icon('snow', 14)}<b>${P.freezes}</b></div>` : ''}
       ${playing ? `<button class="mini-player" data-act="go" data-to="sanctuary" title="Open Sanctuary"><span class="eq"><i></i><i></i><i></i><i></i></span>Playing</button>` : ''}
+      <button class="icon-btn theme-btn" data-act="cycleTheme" aria-label="Change theme" title="Theme: ${esc((A.THEMES.find((x) => x.id === A.resolvedTheme()) || {}).name)}">${icon(A.resolvedTheme() === 'dark' ? 'moon' : A.resolvedTheme() === 'light' ? 'sun' : 'spark', 18)}</button>
       <button class="avatar-btn" data-act="go" data-to="settings" aria-label="Profile and settings" title="${esc(A.S.profile.name)}: level ${li.level}, ${esc(li.rank.name)}">
         <svg viewBox="0 0 44 44"><circle class="trk" cx="22" cy="22" r="19"/><circle class="val" cx="22" cy="22" r="19" stroke-dasharray="${CIRC}" stroke-dashoffset="${CIRC * (1 - li.pct)}"/></svg>
         <span class="av">${esc(A.S.profile.avatar)}</span><em class="lv">${li.level}</em></button>`;
@@ -228,6 +270,14 @@
     const W = innerWidth;
     const H = innerHeight;
     if (mode === 'sanctuary') return s.mode('sanctuary', { cx: 0.5, cy: 0.5 });
+    if (mode === 'medal') {
+      const slot = $('[data-core-slot]', root);
+      if (slot) {
+        const r = slot.getBoundingClientRect();
+        const zoom = A.clamp(Math.min(r.width, r.height) / H / 0.7, 0.2, 2.2);
+        return s.mode('medal', { cx: (r.left + r.width / 2) / W, cy: (r.top + r.height / 2) / H, zoom });
+      }
+    }
     if (mode === 'skyline') {
       const slot = $('[data-skyline-slot]', root);
       const r = slot ? slot.getBoundingClientRect() : null;
@@ -268,12 +318,14 @@
       const di = A.G.dayInfo(d);
       week.push({ kind: di ? di.status : 'future', today: d === today });
     }
+    const li = A.G.levelInfo();
+    s.medal({ level: li.level, rank: li.rank.name });
     s.set({
       progress: info && info.total ? info.done / info.total : 0,
       hp: A.S.player.hp / A.S.player.maxHp,
       quests: sched.map((h) => ({ done: A.G.isDone(h, today), hue: h.hue })),
       week,
-      hue: A.S.settings.accent,
+      hue: A.accentHue(),
       theme: A.resolvedTheme(),
     });
   }
@@ -306,7 +358,7 @@
     const y = window.scrollY;
     if (enter || !v.update) {
       root.dataset.view = A.view;
-      document.body.classList.toggle('night', A.view === 'sanctuary');
+      document.body.classList.toggle('night', A.view === 'sanctuary' && A.resolvedTheme() !== 'rose');
       v.render(root);
       if (enter) {
         window.scrollTo(0, 0);

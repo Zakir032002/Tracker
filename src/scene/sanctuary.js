@@ -66,6 +66,7 @@ export function createSanctuary() {
     uDeep: { value: new THREE.Color('#05090c') },
     uMoonDir: { value: new THREE.Vector3(-0.25, 0.22, -1).normalize() },
     uMoonPower: { value: 1 },
+    uCS: { value: 0 },
   };
   const ocean = new THREE.Mesh(
     new THREE.PlaneGeometry(110, 90, 220, 180),
@@ -90,7 +91,7 @@ export function createSanctuary() {
         varying vec2 vP;
         varying vec3 vW;
         uniform vec3 uCam, uHorizon, uTop, uDeep, uMoonDir;
-        uniform float uFlash, uVis, uMoonPower;
+        uniform float uFlash, uVis, uMoonPower, uCS;
         void main() {
           float e = 0.07;
           float h = H(vP);
@@ -110,6 +111,7 @@ export function createSanctuary() {
           col += crest * 0.05;
           float dist = length(vW.xz - uCam.xz);
           col = mix(col, uHorizon * (1.0 + uFlash), smoothstep(20.0, 62.0, dist));
+          if (uCS > 0.5) col = linearToOutputTexel(vec4(col, 1.0)).rgb;
           gl_FragColor = vec4(col, uVis);
         }`,
     })
@@ -199,12 +201,47 @@ export function createSanctuary() {
     t.colorSpace = THREE.SRGBColorSpace;
     return t;
   }
+  function sunTexture() {
+    const S = 256;
+    const c = document.createElement('canvas');
+    c.width = c.height = S;
+    const g = c.getContext('2d');
+    const grd = g.createRadialGradient(S / 2, S / 2, 4, S / 2, S / 2, S / 2 - 2);
+    grd.addColorStop(0, '#fffaf0');
+    grd.addColorStop(0.55, '#ffe6b0');
+    grd.addColorStop(0.9, '#f7c987');
+    grd.addColorStop(1, 'rgba(247,201,135,0)');
+    g.fillStyle = grd;
+    g.beginPath();
+    g.arc(S / 2, S / 2, S / 2 - 2, 0, Math.PI * 2);
+    g.fill();
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
   const moon = new THREE.Mesh(new THREE.CircleGeometry(1.5, 64), new THREE.MeshBasicMaterial({ map: moonTexture(), transparent: true, opacity: 1, fog: false }));
   const moonPos = new THREE.Vector3(9.5, 6.4, -34);
   moon.position.copy(moonPos);
   moonGlow.position.copy(moonPos).add(new THREE.Vector3(0, 0, -0.1));
   root.add(moonGlow, moon);
   oceanU.uMoonDir.value.copy(moonPos).normalize();
+
+  const moonTex = moon.material.map;
+  const sunTex = sunTexture();
+  let palette = 'dark';
+  function setPalette(name) {
+    if (name === palette) return;
+    palette = name;
+    const rose = name === 'rose';
+    moon.material.map = rose ? sunTex : moonTex;
+    moon.material.needsUpdate = true;
+    moonGlow.material.color.set(rose ? 0xffd9a0 : 0xcfd8e2);
+    moonGlow.material.blending = THREE.AdditiveBlending;
+    oceanU.uHorizon.value.set(rose ? '#f7d2ac' : '#33424e');
+    oceanU.uTop.value.set(rose ? '#e9a6b9' : '#0c1218');
+    oceanU.uDeep.value.set(rose ? '#4a2a42' : '#05090c');
+    rainU.uColor.value.set(rose ? '#fff3ee' : '#b9c6d1');
+  }
 
   let flash = 0;
   let rippleIdx = 0;
@@ -262,5 +299,5 @@ export function createSanctuary() {
     moonGlow.material.opacity = (0.5 - cover * 0.35 + flash * 0.4) * vis;
   }
 
-  return { root, update, ripple, uniforms: oceanU, get flash() { return flash; } };
+  return { root, update, ripple, setPalette, uniforms: oceanU, get flash() { return flash; } };
 }
