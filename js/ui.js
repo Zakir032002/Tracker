@@ -170,6 +170,7 @@
     ['today', 'Today'],
     ['quests', 'Quests'],
     ['insights', 'Insights'],
+    ['diary', 'Diary'],
     ['notes', 'Notes'],
     ['alarms', 'Alarms'],
     ['focus', 'Focus'],
@@ -211,6 +212,7 @@
       <div class="stat streak ${sk.current ? 'lit' : ''}" title="Current streak">${icon('flame', 14)}<span class="lbl">Streak</span><b>${sk.current}</b></div>
       ${P.freezes ? `<div class="stat" title="Streak Freezes">${icon('snow', 14)}<b>${P.freezes}</b></div>` : ''}
       ${playing ? `<button class="mini-player" data-act="go" data-to="sanctuary" title="Open Sanctuary"><span class="eq"><i></i><i></i><i></i><i></i></span>Playing</button>` : ''}
+      <button class="icon-btn search-btn" data-act="palette" data-quiet aria-label="Search and commands (Ctrl+K)" title="Search and commands · Ctrl+K">${icon('search', 18)}</button>
       <button class="icon-btn theme-btn" data-act="cycleTheme" aria-label="Change theme" title="Theme: ${esc((A.THEMES.find((x) => x.id === A.resolvedTheme()) || {}).name)}">${icon(A.resolvedTheme() === 'dark' ? 'moon' : A.resolvedTheme() === 'light' ? 'sun' : 'spark', 18)}</button>
       <button class="avatar-btn" data-act="go" data-to="settings" aria-label="Profile and settings" title="${esc(A.S.profile.name)}: level ${li.level}, ${esc(li.rank.name)}">
         <svg viewBox="0 0 44 44"><circle class="trk" cx="22" cy="22" r="19"/><circle class="val" cx="22" cy="22" r="19" stroke-dasharray="${CIRC}" stroke-dashoffset="${CIRC * (1 - li.pct)}"/></svg>
@@ -252,7 +254,7 @@
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(placePills);
 
   A.actions.menu = () => {
-    const items = [['notes', 'Notes'], ['alarms', 'Alarms'], ['focus', 'Focus'], ['vault', 'Vault'], ['settings', 'Settings']];
+    const items = [['diary', 'Diary'], ['notes', 'Notes'], ['alarms', 'Alarms'], ['focus', 'Focus'], ['vault', 'Vault'], ['settings', 'Settings']];
     ui.modal({
       cls: 'modal-sm menu-sheet',
       html: `<p class="eyebrow">Menu</p><ul class="menu-list">${items.map(([id, l], i) => `<li><button data-act="go" data-to="${id}" data-quiet><i>0${i + 1}</i><span>${l}</span></button></li>`).join('')}</ul>`,

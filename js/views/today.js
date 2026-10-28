@@ -176,6 +176,26 @@
       <div class="row gap"><button class="link" data-act="setIntent" data-quiet>${mine ? 'Change it' : 'Write my own intention'}</button>${mine ? '<button class="link" data-act="clearIntent" data-quiet>Back to the quote</button>' : ''}</div></section>`;
   }
 
+  function agenda() {
+    const D = A.diary;
+    const t = A.today();
+    const todays = D.plansOn(t);
+    const late = D.overdue().slice(0, 3);
+    const soon = D.upcoming(7).slice(0, 4);
+    const wrote = D.hasEntry(t);
+    return `<section class="card glass agenda">
+      <div class="card-head"><div><p class="eyebrow">Agenda</p><h3>Plans &amp; diary</h3></div><button class="link" data-act="diaryOpen" data-d="${t}" data-quiet>${wrote ? 'Open diary' : 'Write today'} →</button></div>
+      <div class="ag-grid"><div>
+        ${late.length ? `<p class="ag-h late">Missed</p>${D.planRows(late, { showDate: true })}` : ''}
+        <p class="ag-h">Today</p>${D.planRows(todays, { empty: 'Nothing planned for today.' })}
+        ${soon.length ? `<p class="ag-h">Coming up</p>${D.planRows(soon, { showDate: true })}` : ''}
+      </div><div>
+        <p class="ag-h">Add a plan</p>${D.planForm(t, 'Something to do today…')}
+        ${wrote ? `<p class="ag-note muted small">${icon('check', 14)} Today's diary page is written.</p>` : `<button class="ag-diary" data-act="diaryOpen" data-d="${t}" data-quiet>${icon('diary', 16)}<span><b>Today's page is blank</b><small>${esc(D.prompt(t))}</small></span></button>`}
+      </div></div>
+    </section>`;
+  }
+
   function mood(info, remaining, sk) {
     const P = A.S.player;
     if (!G.activeHabits().length) return 'Add your first quest to begin the climb.';
@@ -234,6 +254,7 @@
           ${extra.length ? `<p class="muted small rest-note">${extra.length} other quest${extra.length > 1 ? 's are' : ' is'} resting today.</p>` : ''}
           <div class="panels">
             ${intention()}
+            ${agenda()}
             ${bossCard()}
             ${chestCard(info)}
             ${consistency(sk)}

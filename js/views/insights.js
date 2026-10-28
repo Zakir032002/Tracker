@@ -167,41 +167,57 @@
         else if (info.total && info.ratio === 1) mark = icon('check', 12);
         else if (info.status === 'broken') mark = icon('x', 12);
       }
-      cells += `<button class="mcell ${l} ${d === today ? 'today' : ''} ${d === selDate ? 'sel' : ''}" ${info ? `data-act="selectDay" data-d="${d}"` : 'disabled'} data-quiet data-tip="${esc(tipText(d, info))}"><b>${n}</b>${mark}</button>`;
+      const dd = A.diary.hasEntry(d);
+      const pp = A.diary.hasPlan(d);
+      cells += `<button class="mcell ${l} ${d === today ? 'today' : ''} ${d === selDate ? 'sel' : ''} ${dd ? 'has-diary' : ''} ${pp ? 'has-plan' : ''}" data-act="selectDay" data-d="${d}" data-quiet data-tip="${esc(tipText(d, info) + (dd ? ' · diary entry' : '') + (pp ? ' · ' + A.diary.plansOn(d).length + ' plan(s)' : ''))}"><b>${n}</b>${mark}${dd || pp ? `<u>${dd ? '<i class="mk-d"></i>' : ''}${pp ? '<i class="mk-p"></i>' : ''}</u>` : ''}</button>`;
     }
     const head = [0, 1, 2, 3, 4, 5, 6].map((i) => `<span>${A.DAYS[(ws + i) % 7].slice(0, 2)}</span>`).join('');
     const atCurrent = monthSel === ymFirst(today);
+    const atMax = monthSel >= ymFirst(A.addDays(today, 366));
     return `<section class="card glass month-card">
       <div class="card-head"><div><h3>${A.MONTHS[first.getMonth()]} ${first.getFullYear()}</h3><p class="muted small">${tracked ? `${kept} of ${tracked} days kept` : 'No tracked days yet'}</p></div>
         <div class="row gap"><button class="icon-btn" data-act="monthShift" data-n="-1" data-quiet aria-label="Previous month">${icon('left', 18)}</button>
         <button class="btn soft sm" data-act="monthShift" data-n="0" data-quiet ${atCurrent ? 'disabled' : ''}>Today</button>
-        <button class="icon-btn" data-act="monthShift" data-n="1" data-quiet aria-label="Next month" ${atCurrent ? 'disabled' : ''}>${icon('right', 18)}</button></div></div>
+        <button class="icon-btn" data-act="monthShift" data-n="1" data-quiet aria-label="Next month" ${atMax ? 'disabled' : ''}>${icon('right', 18)}</button></div></div>
       <div class="mcal"><div class="mcal-head">${head}</div><div class="mcal-grid">${cells}</div></div>
+      <p class="dcal-key muted small"><i class="k-has"></i> diary entry <i class="k-plan"></i> plans &amp; reminders</p>
       ${dayDetail()}
     </section>`;
   }
 
   function dayDetail() {
-    if (!selDate) return `<p class="muted small center sm-top">Tap a day to see what happened.</p>`;
+    if (!selDate) return `<p class="muted small center sm-top">Tap any day to see what happened, read your diary, or leave a plan.</p>`;
     const info = G.dayInfo(selDate);
-    if (!info) return '';
     const today = A.today();
-    let ids;
-    if (info.closed) {
-      ids = new Set(Object.entries(A.S.logs[selDate] || {}).filter(([, e]) => e.done).map(([id]) => id));
-      (info.missed || []).forEach((id) => ids.add(id));
-    } else ids = new Set(G.scheduledOn(selDate).map((h) => h.id));
-    const rows = [...ids]
-      .map((id) => {
-        const h = A.S.habits.find((x) => x.id === id);
-        if (!h) return '';
-        const done = G.isDone(h, selDate);
-        return `<li class="${done ? 'ok' : selDate === today ? 'pend' : 'bad'}"><span class="mi">${esc(h.icon)}</span><span class="grow">${esc(h.name)}</span><i>${done ? icon('check', 14) : selDate === today ? 'pending' : icon('x', 14)}</i></li>`;
-      })
-      .join('');
-    const pen = info.hpLost ? `<span class="chip late">−${info.hpLost} HP · −${info.xpLost} XP</span>` : '';
+    let rows = '';
+    let pen = '';
+    if (info) {
+      let ids;
+      if (info.closed) {
+        ids = new Set(Object.entries(A.S.logs[selDate] || {}).filter(([, e]) => e.done).map(([id]) => id));
+        (info.missed || []).forEach((id) => ids.add(id));
+      } else ids = new Set(G.scheduledOn(selDate).map((h) => h.id));
+      rows = [...ids]
+        .map((id) => {
+          const h = A.S.habits.find((x) => x.id === id);
+          if (!h) return '';
+          const done = G.isDone(h, selDate);
+          return `<li class="${done ? 'ok' : selDate === today ? 'pend' : 'bad'}"><span class="mi">${esc(h.icon)}</span><span class="grow">${esc(h.name)}</span><i>${done ? icon('check', 14) : selDate === today ? 'pending' : icon('x', 14)}</i></li>`;
+        })
+        .join('');
+      pen = info.hpLost ? `<span class="chip late">−${info.hpLost} HP · −${info.xpLost} XP</span>` : '';
+    }
+    const e = A.diary.entry(selDate);
+    const mood = e && e.mood ? A.diary.mood(e.mood) : null;
+    const diary = A.diary.hasEntry(selDate)
+      ? `<button class="dd-diary" data-act="diaryOpen" data-d="${selDate}" data-quiet><span class="dd-dh"><b>${icon('diary', 14)} Diary</b>${mood ? `<em>${mood.e} ${mood.name}</em>` : ''}</span>${e.title ? `<strong>${esc(e.title)}</strong>` : ''}<span class="dd-dt">${esc(e.text.trim().slice(0, 220))}${e.text.length > 220 ? '…' : ''}</span><small>${e.words} words · open entry</small></button>`
+      : selDate <= today
+      ? `<button class="dd-diary empty" data-act="diaryOpen" data-d="${selDate}" data-quiet><span class="dd-dh"><b>${icon('diary', 14)} Diary</b></span><span class="dd-dt">No entry for this day. ${selDate === today ? 'Write about today' : 'Add one'}.</span></button>`
+      : '';
     return `<div class="day-detail"><div class="dd-head"><h4>${A.prettyDate(selDate, { weekday: 'long', month: 'long', day: 'numeric' })}</h4>${pen}</div>
-      ${rows ? `<ul class="mini-list">${rows}</ul>` : '<p class="muted small">Nothing was scheduled.</p>'}</div>`;
+      ${info ? (rows ? `<ul class="mini-list">${rows}</ul>` : '<p class="muted small">Nothing was scheduled.</p>') : ''}
+      ${diary}
+      <div class="dd-plans"><h5>Plans &amp; reminders</h5>${A.diary.planRows(A.diary.plansOn(selDate))}${A.diary.planForm(selDate, selDate < today ? 'Add a note for this day…' : 'I should do…')}</div></div>`;
   }
 
   /* ---------- month-by-month overview ---------- */

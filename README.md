@@ -36,18 +36,22 @@ The built 3D bundle (`js/scene.bundle.js`) is committed. After editing anything 
 |---|---|
 | **Today** | A sticky hero with the live 3D *Ascension Core*: a glass gem whose ember brightens with your progress, with orbiting beads for each quest and a ring for the week. Quest stream, weekly boss, daily chest |
 | **Quests** | Habits with emoji, colour, difficulty, weekday schedule, "times per day" counters and reminder times |
-| **Insights** | A 3D **contribution skyline** (one tower per day, hover for details), a GitHub-style yearly grid, a LeetCode-style month calendar, a 12-month overview and charts |
+| **Diary** | A private journal: a mood and title for each day, ruled-paper writing that saves as you type, a daily prompt, a writing streak, search, and *On this day* memories from a month, 6 months or a year ago. Writing earns a little XP |
+| **Plans & reminders** | Leave a plan for any date, past or future (*Mom's birthday: buy flowers*), with an optional time. It shows on that day in the Insights calendar, in the Diary, in Today's agenda, in the pin window and in the side panel, and gives a gentle reminder when due. No penalty, they are promises to yourself |
+| **Insights** | A 3D **contribution skyline** (one tower per day, hover for details), a GitHub-style yearly grid, a LeetCode-style month calendar where every day opens its quests, diary entry and plans (dots mark days with a diary entry or plans), a 12-month overview and charts |
 | **Penalties** | Missing quests costs HP, XP and coins at day end, breaks your streak, and at 0 HP you die. Ignoring a quest alarm costs HP. Hardcore mode doubles everything |
 | **Sanctuary** | A moonlit 3D ocean that reacts to the audio. Layer light/heavy rain, rain on window, thunder, ocean waves, temple and singing bowl, with sleep timer and one-tap mixes |
 | **Brainwave generator** | Binaural beats (or isochronic tones for speakers) from 0.5 to 40 Hz with delta / theta / alpha / beta / gamma presets, adjustable carrier, optional pink-noise bed and three guided journeys that glide the beat (Focus ramp, Wind down, Sleep descent) |
 | **Alarms** | Alarms and per-quest reminders with six synthesized tones, a full-screen takeover, escalating snooze cost, damage if you ignore a quest alarm. Ambient audio ducks while an alarm rings |
 | **Notes** | Draggable, resizable, pinnable sticky notes that auto-save |
 | **Focus** | Pomodoro-style sessions that survive refreshes, optionally with a rain mix |
-| **Vault** | A turning 3D **rank medal** (level numeral and rank, metal changes per theme), your **ascent path** through the ranks, coins for power-ups and *your own* real-life rewards, 38 trophies, profile with streak grid |
+| **Vault** | A turning 3D **rank medal** (level numeral and rank, metal changes per theme), your **ascent path** through the ranks, coins for power-ups and *your own* real-life rewards, 43 trophies, profile with streak grid |
 | **Intention** | A thought for the day on Today, which you can replace with your own one-line intention |
 | **Stays on screen** | Quests marked *Keep it on my screen* and your pinned sticky notes follow you: in a Chrome side panel (extension) or a small always-on-top window |
 
-Keyboard: `1`–`8` jump between screens, `n` creates a quest.
+Keyboard: `Ctrl/Cmd+K` (or `/`) opens the **command palette** (jump anywhere, complete a quest, add a plan, switch theme, search your diary), `1`–`9` jump between screens, `n` creates a quest.
+
+Behind everything is a slow 3D backdrop: drifting aurora curtains, a constellation that turns with your pointer, and out-of-focus bokeh at mid-depth, tinted per theme. On the dark theme the glow behind the gem follows the time of day.
 
 ## Keep quests beside your tabs
 
@@ -94,18 +98,20 @@ the app is closed, you are still penalized the normal way when the day closes.
 
 ```
 index.html            app shell
-src/scene/*.js        the 3D scene (core, skyline, sanctuary ocean, medal, rosefx petals/sparkles); bundled by esbuild
+src/scene/*.js        the 3D scene (core, skyline, sanctuary ocean, medal, rosefx petals/sparkles, backdrop aurora/constellation); bundled by esbuild
 js/scene.bundle.js    built scene bundle (committed)
 js/store.js           state, persistence, backup/export
 js/game.js            XP, streaks, penalties, day rollover, boss, achievements, shop
 js/sound.js           ambient loops + binaural / isochronic generator (Web Audio)
 js/audio.js           synthesized UI sounds and alarm tones
 js/motion.js          smooth scroll, cursor, magnetic buttons, tilt, text reveals, route curtain
+js/diary.js           diary + plans data and shared plan UI
+js/palette.js         command palette
 js/bridge.js          snapshot + command bridge for the side panel and pin window
 js/pin.js             "Pin to screen" window
 extension/            Chrome side-panel extension (manifest, content script, panel)
 js/ui.js              router, HUD, nav, modals, 3D placement, reactions to game events
-js/views/*.js         Today, Quests, Insights, Notes, Alarms, Focus, Sanctuary, Vault, Settings
+js/views/*.js         Today, Quests, Insights, Diary, Notes, Alarms, Focus, Sanctuary, Vault, Settings
 css/*.css             tokens + atmosphere, components, views, rose theme, pin/panel
 assets/sounds/*.mp3   Moodist recordings
 ```

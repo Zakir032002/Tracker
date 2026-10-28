@@ -45,14 +45,14 @@
     document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && dayWatch());
     setInterval(A.focusTick, 500);
 
-    // keyboard: 1-8 jump between screens (when not typing)
-    const order = ['today', 'quests', 'insights', 'notes', 'alarms', 'focus', 'sanctuary', 'vault'];
+    // keyboard: 1-9 jump between screens (when not typing)
+    const order = ['today', 'quests', 'insights', 'diary', 'notes', 'alarms', 'focus', 'sanctuary', 'vault'];
     document.addEventListener('keydown', (e) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const t = e.target;
       if (t.matches && t.matches('input, textarea, select, [contenteditable]')) return;
       if (document.querySelector('.modal-wrap, #ring')) return;
-      const i = '12345678'.indexOf(e.key);
+      const i = '123456789'.indexOf(e.key);
       if (i >= 0) A.go(order[i]);
       if (e.key === 'n' && A.view !== 'notes') A.openQuestEditor();
     });

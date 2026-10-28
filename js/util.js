@@ -133,6 +133,8 @@
     headphones: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/><path d="M4 15h3v5H5.5A1.5 1.5 0 0 1 4 18.5ZM20 15h-3v5h1.5a1.5 1.5 0 0 0 1.5-1.5Z"/>',
     rain: '<path d="M7 15a4 4 0 0 1-.4-7.98A5.5 5.5 0 0 1 17 6.5 4.5 4.5 0 0 1 17.5 15M9 18v3M13 18v3M17 18v3"/>',
     bolt2: '<path d="m13 3-7 10h5l-1 8 7-10h-5Z"/>',
+    diary: '<path d="M5 4a2 2 0 0 1 2-2h12v17H7a2 2 0 0 0-2 2V4Z"/><path d="M5 21a2 2 0 0 0 2 1h12v-3M10 7h5M10 11h5"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>',
   };
   A.icon = (name, size = 20, extra = '') =>

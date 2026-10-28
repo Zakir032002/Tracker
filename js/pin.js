@@ -29,12 +29,19 @@
           <button class="pn-x" data-p="del" data-id="${n.id}" aria-label="Remove note" title="Remove">×</button></li>`
       )
       .join('');
+    const plans = (s.plans || [])
+      .map(
+        (p) => `<li class="pq ${p.done ? 'done' : ''}"><button class="pq-check" data-p="plan" data-id="${p.id}" aria-label="${p.done ? 'Undo' : 'Complete'} ${esc(p.text)}">${p.done ? '✓' : ''}</button>
+          <div class="pq-main"><span class="pq-name">${esc(p.text)}</span>${p.time ? `<small>${A.time12(p.time)}</small>` : ''}</div></li>`
+      )
+      .join('');
     return `<div class="pin">
       <header><div><b>${esc(s.profile.avatar)} ${esc(s.profile.name)}</b><small>Lv ${s.level.n} · ${esc(s.level.rank)}</small></div>
         <div class="pin-stats"><span>♥ ${s.hp}</span><span>◎ ${A.fmtNum(s.coins)}</span><span>🔥 ${s.streak}</span></div></header>
       <div class="pin-bar"><i style="width:${pct}%"></i></div>
       <p class="pin-sub">${s.progress.done} of ${s.progress.total} quests · ${pct}%</p>
       <ul class="pin-list">${q || '<li class="empty">No quests left today.</li>'}</ul>
+      ${plans ? `<h4>Plans for today</h4><ul class="pin-list">${plans}</ul>` : ''}
       <h4>Sticky notes</h4>
       <ul class="pin-notes">${notes || '<li class="empty">Nothing stuck here yet.</li>'}</ul>
       <form class="pin-add" data-p="addform"><input name="t" maxlength="200" placeholder="Stick a note…" autocomplete="off"><button type="submit">Add</button></form>
@@ -61,9 +68,10 @@
       const id = b.dataset.id;
       const k = b.dataset.p;
       if (k === 'toggle') A.bridge.exec({ t: 'toggle', id });
+      else if (k === 'plan') A.bridge.exec({ t: 'planToggle', id });
       else if (k === 'inc') A.bridge.exec({ t: 'inc', id, d: 1 });
       else if (k === 'del') A.bridge.exec({ t: 'noteDel', id });
-      A.sfx(k === 'toggle' ? 'check' : 'click');
+      A.sfx(k === 'toggle' || k === 'plan' ? 'check' : 'click');
     });
     doc.addEventListener('submit', (e) => {
       e.preventDefault();

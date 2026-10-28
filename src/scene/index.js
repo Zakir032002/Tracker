@@ -12,6 +12,7 @@ import { createSkyline } from './skyline.js';
 import { createSanctuary } from './sanctuary.js';
 import { createMedal } from './medal.js';
 import { createRoseFx } from './rosefx.js';
+import { createBackdrop } from './backdrop.js';
 import { damp, clamp, hsl } from './util.js';
 
 const noop = () => {};
@@ -162,6 +163,9 @@ function boot() {
   const rosefx = createRoseFx(envMap);
   scene.add(rosefx.root);
 
+  const backdrop = createBackdrop();
+  scene.add(backdrop.root);
+
   scene.add(new THREE.HemisphereLight(0xfff1de, 0x1a1410, 0.35));
   scene.fog = new THREE.Fog(0x070605, 12, 30);
 
@@ -210,11 +214,37 @@ function boot() {
     sanct.setPalette(rose ? 'rose' : 'dark');
     medal.setInfo(null, theme);
     dustU.uColor.value.set(light ? '#7a6a55' : '#e8dcc8');
+    backdrop.setTheme(theme, a);
+    todT = -99;
     dust.visible = qualityLevel !== 'low' && !rose;
     renderer.toneMappingExposure = rose ? 0.98 : light ? 0.95 : 1.05;
   }
 
+  /* the glow behind the core follows the clock: dawn peach, pale noon, ember dusk, night blue */
+  const TOD = [[0, '#6f86b8'], [5, '#6f86b8'], [7, '#f0b08a'], [11, '#cfd8e0'], [16, '#d9d2c4'], [18.5, '#e58f5a'], [20.5, '#7f6fa8'], [24, '#6f86b8']].map(([h, c]) => [h, new THREE.Color(c)]);
+  const todColor = new THREE.Color();
+  const todTmp = new THREE.Color();
+  function timeOfDay() {
+    const d = new Date();
+    const h = d.getHours() + d.getMinutes() / 60;
+    for (let i = 0; i < TOD.length - 1; i++) {
+      if (h >= TOD[i][0] && h <= TOD[i + 1][0]) {
+        const k = (h - TOD[i][0]) / (TOD[i + 1][0] - TOD[i][0]);
+        todColor.copy(TOD[i][1]).lerp(TOD[i + 1][1], k);
+        break;
+      }
+    }
+    skyU.uGlowPos.value.set(0.12 + 0.62 * (h / 24), 0.5 + 0.12 * Math.sin((h / 24) * Math.PI * 2));
+    return todColor;
+  }
+  let todT = -99;
+
   function lerpSky() {
+    if (clock.elapsedTime - todT > 60) {
+      todT = clock.elapsedTime;
+      if (theme !== 'rose') skyU.uGlow.value.copy(accent()).lerp(timeOfDay(), 0.55);
+      else timeOfDay();
+    }
     const P = PAL[theme] || PAL.dark;
     const rose = theme === 'rose';
     const S = rose ? SANCT.rose : SANCT.dark;
@@ -237,6 +267,7 @@ function boot() {
     camera.aspect = w / h;
     skyU.uAspect.value = w / h;
     rosefx.setScale(h);
+    backdrop.setScale(h);
     camera.updateProjectionMatrix();
   }
   window.addEventListener('resize', resize);
@@ -361,6 +392,8 @@ function boot() {
       medal.root.scale.setScalar(Math.max(0.0001, W.medal * ie));
       medal.update(dt, t, { x: pointer.sx * par, y: pointer.sy * par });
     }
+    // far background: full strength behind core/medal, softer behind charts, nearly off over the ocean
+    backdrop.update(dt, t, (1 - W.sanct * 0.92) * (1 - W.sky * 0.45) * (qualityLevel === 'low' ? 0 : 1) * ie, { x: pointer.sx * par, y: pointer.sy * par });
     // rose ambience
     rosefx.update(dt, t, theme === 'rose' ? 1 - W.sanct * 0.25 : 0, { x: pointer.sx * par, y: pointer.sy * par });
     // skyline

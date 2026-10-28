@@ -38,6 +38,8 @@
     lastClosed: null,
     boss: null,
     notes: [],
+    diary: {}, // diary[date] = { title, text, mood, words, rewarded, updatedAt }
+    plans: [], // { id, date, text, time, done, rewarded }
     alarms: [],
     alarmFired: {},
     achievements: {},

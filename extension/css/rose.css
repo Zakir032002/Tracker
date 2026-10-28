@@ -45,7 +45,8 @@
   background-clip: text;
   color: transparent;
   animation: shimmer 8s linear infinite;
-  padding-right: 0.05em;
+  padding: 0 0.05em 0.14em 0;
+  margin-bottom: -0.14em;
 }
 :root[data-theme='rose'] .hero h1 em,
 :root[data-theme='rose'] .page-head h1 em,

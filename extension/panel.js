@@ -49,6 +49,12 @@
           <button class="pn-x" data-p="del" data-id="${esc(n.id)}" aria-label="Remove note" title="Remove">×</button></li>`
       )
       .join('');
+    const plans = (s.plans || [])
+      .map(
+        (p) => `<li class="pq ${p.done ? 'done' : ''}"><button class="pq-check" data-p="plan" data-id="${esc(p.id)}" aria-label="${p.done ? 'Undo' : 'Complete'} ${esc(p.text)}">${p.done ? '✓' : ''}</button>
+          <div class="pq-main"><span class="pq-name">${esc(p.text)}</span>${p.time ? `<small>${time12(p.time)}</small>` : ''}</div></li>`
+      )
+      .join('');
     return `<div class="pin">
       ${banner()}
       <header><div><b>${esc(s.profile.avatar)} ${esc(s.profile.name)}</b><small>Lv ${s.level.n} · ${esc(s.level.rank)}</small></div>
@@ -56,6 +62,7 @@
       <div class="pin-bar"><i style="width:${pct}%"></i></div>
       <p class="pin-sub">${done} of ${total} quests · ${pct}%</p>
       <ul class="pin-list">${q || '<li class="empty">Nothing stuck here. Turn on “Keep it on my screen” for a quest.</li>'}</ul>
+      ${plans ? `<h4>Plans for today</h4><ul class="pin-list">${plans}</ul>` : ''}
       <h4>Sticky notes</h4>
       <ul class="pin-notes">${notes || '<li class="empty">Nothing stuck here yet.</li>'}</ul>
       <form class="pin-add" data-p="addform"><input name="t" maxlength="200" placeholder="Stick a note…" autocomplete="off"><button type="submit">Add</button></form>
@@ -113,6 +120,7 @@
     if (!b || b.tagName === 'FORM') return;
     const id = b.dataset.id;
     if (b.dataset.p === 'toggle') run({ t: 'toggle', id });
+    else if (b.dataset.p === 'plan') run({ t: 'planToggle', id });
     else if (b.dataset.p === 'inc') run({ t: 'inc', id, d: 1 });
     else if (b.dataset.p === 'del') run({ t: 'noteDel', id });
   });

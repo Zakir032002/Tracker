@@ -49,6 +49,7 @@
       progress: { done, total: sched.length },
       quests,
       notes,
+      plans: A.diary ? A.diary.plansOn(today).map((p) => ({ id: p.id, text: p.text, time: p.time, done: p.done })) : [],
     };
   }
 
@@ -92,6 +93,12 @@
         if (n) n.pinned = !n.pinned;
         break;
       }
+      case 'planToggle':
+        if (A.diary && A.S.plans.some((p) => p.id === c.id)) A.diary.togglePlan(c.id);
+        break;
+      case 'planAdd':
+        if (A.diary && typeof c.text === 'string' && c.text.trim()) A.diary.addPlan(A.today(), c.text.trim(), '');
+        break;
       case 'questAdd':
         if (typeof c.name === 'string' && c.name.trim()) G.addHabit({ name: c.name.trim().slice(0, 48), icon: c.icon || '✨', hue: A.ui.HUES[A.S.habits.length % A.ui.HUES.length], diff: 'medium' });
         break;

@@ -600,6 +600,7 @@
       lowHp: S().player.hp > 0 && S().player.hp <= 10,
       ambient: st.ambient || 0,
       binaural: st.binaural || 0,
+      diary: A.diary ? A.diary.stats() : { entries: 0, streak: 0, longest: 0, plansDone: 0 },
     };
   };
   const cnt = (id, icon, name, desc, rarity, key, n) => ach(id, icon, name, desc, rarity, (c) => c[key] >= n, (c) => [Math.min(c[key], n), n]);
@@ -641,6 +642,11 @@
     ach('dead', '💀', 'Humbled', 'Get defeated once. It happens.', 'common', (c) => c.deaths >= 1),
     ach('ambient', '🌧️', 'Into the Quiet', 'Play a sound in the Sanctuary', 'common', (c) => c.ambient > 0),
     ach('binaural', '🎧', 'Tuned In', 'Start a binaural session', 'common', (c) => c.binaural > 0),
+    ach('diary1', '📖', 'Dear Diary', 'Write your first diary entry', 'common', (c) => c.diary.entries >= 1, (c) => [Math.min(c.diary.entries, 1), 1]),
+    ach('diary10', '🖋️', 'Chronicler', 'Write 10 diary entries', 'rare', (c) => c.diary.entries >= 10, (c) => [Math.min(c.diary.entries, 10), 10]),
+    ach('diary7', '🕯️', 'Nightly Ritual', 'Write in your diary 7 days in a row', 'rare', (c) => c.diary.longest >= 7, (c) => [Math.min(c.diary.longest, 7), 7]),
+    ach('diary50', '📚', 'Memoirist', 'Write 50 diary entries', 'epic', (c) => c.diary.entries >= 50, (c) => [Math.min(c.diary.entries, 50), 50]),
+    ach('plan10', '🗓️', 'Promise Keeper', 'Complete 10 day plans', 'rare', (c) => c.diary.plansDone >= 10, (c) => [Math.min(c.diary.plansDone, 10), 10]),
     ach('close', '🩹', 'Living Dangerously', 'Survive with 10 HP or less', 'rare', (c) => c.lowHp),
   ];
 
